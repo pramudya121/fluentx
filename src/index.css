@@ -8,89 +8,106 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Winter Sakura Theme - Light & Elegant */
+    --background: 210 20% 98%;
+    --foreground: 330 15% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 330 15% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 330 15% 20%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Sakura Pink - Main brand color */
+    --primary: 330 80% 65%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 330 90% 75%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Snow/Ice Blue - Secondary */
+    --secondary: 210 30% 96%;
+    --secondary-foreground: 210 30% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 210 15% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Soft accent */
+    --accent: 330 70% 90%;
+    --accent-foreground: 330 80% 35%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 210 20% 90%;
+    --input: 210 20% 92%;
+    --ring: 330 80% 65%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Custom design tokens for sakura theme */
+    --sakura-pink: 330 80% 65%;
+    --sakura-light: 330 90% 85%;
+    --snow-blue: 210 40% 95%;
+    --ice-blue: 200 50% 85%;
+    --winter-gray: 210 15% 65%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Gradients */
+    --gradient-sakura: linear-gradient(135deg, hsl(330 90% 75%) 0%, hsl(330 80% 65%) 100%);
+    --gradient-winter: linear-gradient(180deg, hsl(210 40% 98%) 0%, hsl(210 30% 96%) 100%);
+    --gradient-card: linear-gradient(135deg, hsla(0 0% 100% / 0.9) 0%, hsla(330 70% 95% / 0.8) 100%);
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Shadows */
+    --shadow-sakura: 0 10px 40px -10px hsl(330 80% 65% / 0.3);
+    --shadow-card: 0 4px 20px -4px hsl(330 60% 70% / 0.15);
+    --shadow-glow: 0 0 30px hsl(330 90% 75% / 0.4);
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 230 25% 10%;
+    --foreground: 330 70% 90%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 230 20% 15%;
+    --card-foreground: 330 70% 90%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 230 20% 15%;
+    --popover-foreground: 330 70% 90%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 330 75% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 330 85% 70%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 230 20% 20%;
+    --secondary-foreground: 330 70% 90%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 230 20% 18%;
+    --muted-foreground: 210 20% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 330 60% 30%;
+    --accent-foreground: 330 90% 85%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 230 20% 25%;
+    --input: 230 20% 22%;
+    --ring: 330 75% 60%;
+
+    --sakura-pink: 330 75% 60%;
+    --sakura-light: 330 70% 70%;
+    --snow-blue: 230 25% 20%;
+    --ice-blue: 210 40% 30%;
+    --winter-gray: 210 20% 50%;
+
+    --gradient-sakura: linear-gradient(135deg, hsl(330 85% 70%) 0%, hsl(330 75% 60%) 100%);
+    --gradient-winter: linear-gradient(180deg, hsl(230 25% 12%) 0%, hsl(230 20% 15%) 100%);
+    --gradient-card: linear-gradient(135deg, hsla(230 20% 18% / 0.9) 0%, hsla(330 40% 25% / 0.6) 100%);
+
+    --shadow-sakura: 0 10px 40px -10px hsl(330 75% 50% / 0.5);
+    --shadow-card: 0 4px 20px -4px hsl(330 60% 60% / 0.3);
+    --shadow-glow: 0 0 40px hsl(330 85% 70% / 0.5);
   }
 }
 
@@ -101,5 +118,65 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Sakura falling animation */
+  @keyframes sakura-fall {
+    0% {
+      transform: translateY(-10vh) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(110vh) rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes sakura-sway {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(20px);
+    }
+  }
+
+  .sakura-petal {
+    position: fixed;
+    width: 12px;
+    height: 12px;
+    background: hsl(var(--sakura-pink));
+    border-radius: 50% 0 50% 0;
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 50;
+    animation: sakura-fall linear infinite, sakura-sway ease-in-out infinite;
+  }
+
+  /* Glassmorphism effect */
+  .glass-card {
+    background: linear-gradient(135deg, hsla(0 0% 100% / 0.1) 0%, hsla(330 70% 95% / 0.05) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsla(330 80% 80% / 0.2);
+  }
+
+  /* Glow effects */
+  .sakura-glow {
+    box-shadow: var(--shadow-sakura);
+  }
+
+  .hover-glow {
+    transition: var(--transition-smooth);
+  }
+
+  .hover-glow:hover {
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-2px);
+  }
+
+  /* Smooth scroll */
+  html {
+    scroll-behavior: smooth;
   }
 }
