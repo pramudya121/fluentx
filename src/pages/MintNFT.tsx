@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Upload, Loader2, Sparkles } from 'lucide-react';
+import { Upload, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { mintNFT } from '@/lib/web3/contracts';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { getProvider, switchToFluentTestnet } from '@/lib/web3/wallet';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function MintNFT() {
   const { account } = useWeb3();
@@ -18,6 +20,50 @@ export default function MintNFT() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [minting, setMinting] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<'checking' | 'correct' | 'wrong' | 'no-wallet'>('checking');
+
+  // Check network on mount and when account changes
+  useEffect(() => {
+    const checkNetwork = async () => {
+      if (!account) {
+        setNetworkStatus('no-wallet');
+        return;
+      }
+
+      try {
+        const provider = await getProvider();
+        if (!provider) {
+          setNetworkStatus('no-wallet');
+          return;
+        }
+
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+        
+        if (chainId === 20994) {
+          setNetworkStatus('correct');
+        } else {
+          setNetworkStatus('wrong');
+        }
+      } catch (error) {
+        console.error('Error checking network:', error);
+        setNetworkStatus('wrong');
+      }
+    };
+
+    checkNetwork();
+  }, [account]);
+
+  const handleSwitchNetwork = async () => {
+    try {
+      await switchToFluentTestnet();
+      setNetworkStatus('correct');
+      toast.success('Switched to Fluent Testnet');
+    } catch (error: any) {
+      console.error('Error switching network:', error);
+      toast.error(error.message || 'Failed to switch network');
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -37,63 +83,50 @@ export default function MintNFT() {
       return;
     }
 
+    if (networkStatus !== 'correct') {
+      toast.error('Please switch to Fluent Testnet first');
+      return;
+    }
+
     if (!file || !name) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     setMinting(true);
+    let loadingToast: string | number | undefined;
+    
     try {
       // Show different loading stages
-      const loadingToast = toast.loading('Uploading image to storage...');
+      loadingToast = toast.loading('Uploading image to storage...');
       
       const { tokenId } = await mintNFT(file, name, description, account);
       
       toast.dismiss(loadingToast);
       toast.success(`NFT minted successfully! Token ID: ${tokenId}`, {
-        duration: 5000
+        duration: 5000,
       });
-      
+
       // Reset form
       setFile(null);
       setPreview(null);
       setName('');
       setDescription('');
-      
-      // Navigate to profile
+
+      // Navigate to profile after a short delay
       setTimeout(() => {
         navigate('/profile');
       }, 2000);
     } catch (error: any) {
-      console.error('Minting error details:', error);
-      
-      // Provide user-friendly error messages
-      let errorMessage = 'Failed to mint NFT';
-      
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.reason) {
-        errorMessage = error.reason;
-      } else if (error.code) {
-        switch (error.code) {
-          case 'ACTION_REJECTED':
-          case 4001:
-            errorMessage = 'Transaction was cancelled';
-            break;
-          case 'INSUFFICIENT_FUNDS':
-          case -32000:
-            errorMessage = 'Insufficient funds for transaction';
-            break;
-          case 'NETWORK_ERROR':
-            errorMessage = 'Network connection error';
-            break;
-          default:
-            errorMessage = `Transaction failed (Error code: ${error.code})`;
-        }
+      console.error('Error minting NFT:', error);
+      if (loadingToast) {
+        toast.dismiss(loadingToast);
       }
       
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Failed to mint NFT. Please try again.';
       toast.error(errorMessage, {
-        duration: 5000
+        duration: 5000,
       });
     } finally {
       setMinting(false);
@@ -101,135 +134,178 @@ export default function MintNFT() {
   };
 
   return (
-    <div className="min-h-screen py-8 animate-fade-in">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent flex items-center justify-center gap-2">
+            <Sparkles className="w-8 h-8 text-primary" />
             Mint Your NFT
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Create and mint your unique Sakura NFT
+          <p className="text-muted-foreground">
+            Create and mint your unique NFT on Fluent Testnet
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Preview */}
-          <Card className="glass-card">
+        {/* Network Status Alert */}
+        {networkStatus === 'wrong' && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Wrong Network</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>Please switch to Fluent Testnet to mint NFTs</span>
+              <Button 
+                onClick={handleSwitchNetwork} 
+                variant="outline" 
+                size="sm"
+                className="ml-4"
+              >
+                Switch Network
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {networkStatus === 'no-wallet' && (
+          <Alert className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Wallet Not Connected</AlertTitle>
+            <AlertDescription>
+              Please connect your wallet to start minting NFTs
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Preview Card */}
+          <Card className="backdrop-blur-sm bg-background/50 border-primary/20">
             <CardHeader>
               <CardTitle>Preview</CardTitle>
-              <CardDescription>How your NFT will appear</CardDescription>
+              <CardDescription>How your NFT will look</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="aspect-square rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20">
+              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                 {preview ? (
-                  <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                  <img src={preview} alt="NFT Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="text-center p-8">
-                    <Upload className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground">Upload an image to see preview</p>
+                  <div className="text-center text-muted-foreground">
+                    <Upload className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                    <p>No image selected</p>
                   </div>
                 )}
               </div>
+              
               {preview && (
-                <div className="mt-4 p-4 rounded-lg bg-muted/30">
-                  <h3 className="font-bold text-lg mb-1">{name || 'Untitled'}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {description || 'No description'}
-                  </p>
+                <div className="mt-4 space-y-2">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Name</p>
+                    <p className="text-lg font-semibold">{name || 'Untitled NFT'}</p>
+                  </div>
+                  {description && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Description</p>
+                      <p className="text-sm">{description}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Form */}
-          <Card className="glass-card">
+          {/* Mint Form */}
+          <Card className="backdrop-blur-sm bg-background/50 border-primary/20">
             <CardHeader>
               <CardTitle>NFT Details</CardTitle>
-              <CardDescription>Fill in your NFT information</CardDescription>
+              <CardDescription>Upload your artwork and add details</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* File Upload */}
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="file">Image File *</Label>
-                <div className="relative">
-                  <Input
-                    id="file"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="cursor-pointer"
-                    disabled={minting}
-                  />
-                </div>
+                <Label htmlFor="image">Image *</Label>
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  disabled={minting || networkStatus !== 'correct'}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Supported formats: JPG, PNG, GIF, WEBP (Max 10MB)
+                  Supported formats: JPG, PNG, GIF, WebP (Max 10MB)
                 </p>
               </div>
 
-              {/* Name */}
               <div className="space-y-2">
                 <Label htmlFor="name">Name *</Label>
                 <Input
                   id="name"
-                  placeholder="My Awesome NFT"
+                  placeholder="Enter NFT name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  disabled={minting}
+                  disabled={minting || networkStatus !== 'correct'}
                 />
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe your NFT..."
+                  placeholder="Enter NFT description (optional)"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
-                  disabled={minting}
+                  disabled={minting || networkStatus !== 'correct'}
                 />
               </div>
 
-              {/* Info Box */}
-              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-                <h4 className="font-semibold text-sm mb-2 text-primary">What happens next?</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Image will be uploaded to secure storage</li>
-                  <li>• Metadata will be created</li>
-                  <li>• NFT will be minted to your wallet</li>
-                  <li>• Transaction must be confirmed in wallet</li>
-                </ul>
-              </div>
-
-              {/* Mint Button */}
               <Button
                 onClick={handleMint}
-                disabled={!account || !file || !name || minting}
-                className="w-full bg-gradient-to-r from-primary to-primary-glow hover:opacity-90 h-12 text-lg font-semibold"
+                disabled={!file || !name || minting || networkStatus !== 'correct'}
+                className="w-full"
+                size="lg"
               >
                 {minting ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Minting...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5 mr-2" />
+                    <Sparkles className="w-4 h-4 mr-2" />
                     Mint NFT
                   </>
                 )}
               </Button>
 
               {!account && (
-                <p className="text-sm text-center text-destructive">
-                  Please connect your wallet to mint NFTs
+                <p className="text-sm text-center text-muted-foreground">
+                  Please connect your wallet to continue
                 </p>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Info Section */}
+        <Card className="mt-8 backdrop-blur-sm bg-background/50 border-primary/20">
+          <CardHeader>
+            <CardTitle>How Minting Works</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+              <li>Upload your artwork (image file)</li>
+              <li>Add a name and description for your NFT</li>
+              <li>Ensure you're connected to Fluent Testnet</li>
+              <li>Click "Mint NFT" and confirm the transaction in your wallet</li>
+              <li>Wait for the transaction to be confirmed on the blockchain</li>
+              <li>Your NFT will appear in your profile once minted</li>
+            </ol>
+            <div className="mt-4 p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-1">Note:</p>
+              <p className="text-sm text-muted-foreground">
+                Minting requires a small amount of ETH for gas fees. Make sure you have enough
+                ETH in your wallet on Fluent Testnet.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
