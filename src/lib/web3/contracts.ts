@@ -57,66 +57,126 @@ export async function mintNFT(
   ownerAddress: string
 ): Promise<{ tokenId: number; imageUrl: string; metadataUri: string }> {
   try {
-    // Upload image to Supabase Storage
-    const imageUrl = await uploadFileToStorage(file);
+    console.log('Starting NFT minting process...');
     
-    // Create metadata
-    const metadataUri = await createMetadata(name, description, imageUrl);
+    // Get provider first to check network
+    const provider = await getProvider();
+    if (!provider) {
+      throw new Error('Unable to connect to network. Please connect your wallet first.');
+    }
+
+    // Verify we're on the correct network
+    const network = await provider.getNetwork();
+    console.log('Connected to network:', network.chainId);
     
-    // Get signer and provider
+    if (Number(network.chainId) !== 20994) {
+      throw new Error('Please switch to Fluent Testnet (Chain ID: 20994) in your wallet');
+    }
+
+    // Get signer
     const signer = await getSigner();
     if (!signer) {
       throw new Error('Please connect your wallet first');
     }
 
-    const provider = await getProvider();
-    if (!provider) {
-      throw new Error('Unable to connect to network');
+    // Verify contract exists
+    const contractCode = await provider.getCode(CONTRACTS.SAKURA_NFT);
+    console.log('Contract code length:', contractCode.length);
+    
+    if (contractCode === '0x' || contractCode.length <= 2) {
+      throw new Error('NFT contract not found at the specified address. Please ensure the contract is deployed on Fluent Testnet.');
     }
+    
+    // Upload image to Supabase Storage
+    console.log('Uploading image...');
+    const imageUrl = await uploadFileToStorage(file);
+    console.log('Image uploaded:', imageUrl);
+    
+    // Create metadata
+    console.log('Creating metadata...');
+    const metadataUri = await createMetadata(name, description, imageUrl);
+    console.log('Metadata created:', metadataUri);
 
     // Check balance
     const balance = await provider.getBalance(ownerAddress);
+    console.log('Wallet balance:', ethers.formatEther(balance), 'ETH');
+    
     if (balance === 0n) {
       throw new Error('Insufficient balance for gas fees. Please add some ETH to your wallet.');
     }
 
     // Get contract
+    console.log('Initializing contract...');
     const nftContract = getContract(CONTRACTS.SAKURA_NFT, SAKURA_NFT_ABI, signer);
+    
+    // Verify contract has mintNFT function
+    if (typeof nftContract.mintNFT !== 'function') {
+      throw new Error('Contract does not have mintNFT function. Please check the contract ABI.');
+    }
     
     // Estimate gas and add buffer
     let gasLimit;
     try {
+      console.log('Estimating gas for minting...');
       const estimatedGas = await nftContract.mintNFT.estimateGas(ownerAddress, metadataUri);
-      gasLimit = (estimatedGas * 120n) / 100n; // Add 20% buffer
+      gasLimit = (estimatedGas * 150n) / 100n; // Add 50% buffer for safety
+      console.log('Gas estimated:', estimatedGas.toString(), 'with buffer:', gasLimit.toString());
     } catch (gasError: any) {
       console.error('Gas estimation failed:', gasError);
-      // Use a reasonable default gas limit if estimation fails
-      gasLimit = 500000n;
+      
+      // Provide specific error for gas estimation failure
+      if (gasError.message.includes('execution reverted')) {
+        throw new Error('Contract execution would fail. Please check if the contract is properly configured.');
+      }
+      
+      // Use a higher default gas limit if estimation fails
+      gasLimit = 800000n;
+      console.log('Using default gas limit:', gasLimit.toString());
     }
 
     // Get current gas price
     const feeData = await provider.getFeeData();
     const gasPrice = feeData.gasPrice;
+    console.log('Gas price:', gasPrice?.toString());
 
     // Mint NFT with explicit gas parameters
     let tx;
     try {
-      console.log('Calling mintNFT with:', { ownerAddress, metadataUri, gasLimit: gasLimit.toString() });
+      console.log('Sending mint transaction...');
+      console.log('Parameters:', { 
+        owner: ownerAddress, 
+        metadataUri, 
+        gasLimit: gasLimit.toString(),
+        gasPrice: gasPrice?.toString()
+      });
+      
       tx = await nftContract.mintNFT(ownerAddress, metadataUri, {
         gasLimit,
-        gasPrice
+        ...(gasPrice && { gasPrice })
       });
-      console.log('Transaction sent:', tx.hash);
+      
+      console.log('Transaction sent successfully!');
+      console.log('Transaction hash:', tx.hash);
     } catch (contractError: any) {
       console.error('Contract call failed:', contractError);
+      console.error('Error details:', {
+        code: contractError.code,
+        message: contractError.message,
+        reason: contractError.reason,
+        data: contractError.data
+      });
       
       // Parse specific error messages
-      if (contractError.reason) {
-        throw new Error(`Contract error: ${contractError.reason}`);
-      } else if (contractError.code === 'ACTION_REJECTED') {
+      if (contractError.code === 'ACTION_REJECTED' || contractError.code === 4001) {
         throw new Error('Transaction was rejected by user');
-      } else if (contractError.code === 'INSUFFICIENT_FUNDS') {
+      } else if (contractError.code === 'INSUFFICIENT_FUNDS' || contractError.code === -32000) {
         throw new Error('Insufficient funds for gas fees');
+      } else if (contractError.code === -32603) {
+        throw new Error('Contract execution failed. Please ensure you are on Fluent Testnet and the contract is properly deployed.');
+      } else if (contractError.reason) {
+        throw new Error(`Contract error: ${contractError.reason}`);
+      } else if (contractError.message.includes('could not coalesce')) {
+        throw new Error('Failed to decode contract response. Please verify the contract address and network.');
       } else if (contractError.message) {
         throw new Error(`Transaction failed: ${contractError.message}`);
       } else {
