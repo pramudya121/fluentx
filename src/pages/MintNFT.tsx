@@ -44,10 +44,15 @@ export default function MintNFT() {
 
     setMinting(true);
     try {
-      toast.info('Uploading file to storage...');
+      // Show different loading stages
+      const loadingToast = toast.loading('Uploading image to storage...');
+      
       const { tokenId } = await mintNFT(file, name, description, account);
       
-      toast.success(`NFT minted successfully! Token ID: ${tokenId}`);
+      toast.dismiss(loadingToast);
+      toast.success(`NFT minted successfully! Token ID: ${tokenId}`, {
+        duration: 5000
+      });
       
       // Reset form
       setFile(null);
@@ -60,8 +65,36 @@ export default function MintNFT() {
         navigate('/profile');
       }, 2000);
     } catch (error: any) {
-      console.error('Error minting NFT:', error);
-      toast.error(error.message || 'Failed to mint NFT');
+      console.error('Minting error details:', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to mint NFT';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.reason) {
+        errorMessage = error.reason;
+      } else if (error.code) {
+        switch (error.code) {
+          case 'ACTION_REJECTED':
+          case 4001:
+            errorMessage = 'Transaction was cancelled';
+            break;
+          case 'INSUFFICIENT_FUNDS':
+          case -32000:
+            errorMessage = 'Insufficient funds for transaction';
+            break;
+          case 'NETWORK_ERROR':
+            errorMessage = 'Network connection error';
+            break;
+          default:
+            errorMessage = `Transaction failed (Error code: ${error.code})`;
+        }
+      }
+      
+      toast.error(errorMessage, {
+        duration: 5000
+      });
     } finally {
       setMinting(false);
     }

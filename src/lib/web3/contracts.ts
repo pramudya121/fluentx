@@ -63,18 +63,52 @@ export async function mintNFT(
     // Create metadata
     const metadataUri = await createMetadata(name, description, imageUrl);
     
-    // Get signer
+    // Get signer and provider
     const signer = await getSigner();
     if (!signer) {
       throw new Error('Please connect your wallet first');
     }
 
+    const provider = await getProvider();
+    if (!provider) {
+      throw new Error('Unable to connect to network');
+    }
+
+    // Check balance
+    const balance = await provider.getBalance(ownerAddress);
+    if (balance === 0n) {
+      throw new Error('Insufficient balance for gas fees. Please add some ETH to your wallet.');
+    }
+
     // Get contract
     const nftContract = getContract(CONTRACTS.SAKURA_NFT, SAKURA_NFT_ABI, signer);
     
-    // Mint NFT
-    const tx = await nftContract.mintNFT(ownerAddress, metadataUri);
+    // Estimate gas and add buffer
+    let gasLimit;
+    try {
+      const estimatedGas = await nftContract.mintNFT.estimateGas(ownerAddress, metadataUri);
+      gasLimit = (estimatedGas * 120n) / 100n; // Add 20% buffer
+    } catch (gasError: any) {
+      console.error('Gas estimation failed:', gasError);
+      // Use a reasonable default gas limit if estimation fails
+      gasLimit = 500000n;
+    }
+
+    // Get current gas price
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.gasPrice;
+
+    // Mint NFT with explicit gas parameters
+    const tx = await nftContract.mintNFT(ownerAddress, metadataUri, {
+      gasLimit,
+      gasPrice
+    });
+    
     const receipt = await tx.wait();
+    
+    if (!receipt || receipt.status === 0) {
+      throw new Error('Transaction failed. Please check your transaction on block explorer.');
+    }
     
     // Get token ID from event
     const event = receipt.logs.find((log: any) => {
@@ -89,8 +123,12 @@ export async function mintNFT(
     const parsedEvent = event ? nftContract.interface.parseLog(event) : null;
     const tokenId = parsedEvent ? Number(parsedEvent.args[1]) : 0;
 
+    if (tokenId === 0) {
+      throw new Error('Failed to get token ID from transaction');
+    }
+
     // Save to Supabase
-    await supabase.from('nfts').insert({
+    const { error: insertError } = await supabase.from('nfts').insert({
       token_id: tokenId,
       contract_address: CONTRACTS.SAKURA_NFT,
       name,
@@ -101,19 +139,45 @@ export async function mintNFT(
       metadata_uri: metadataUri
     });
 
+    if (insertError) {
+      console.error('Error saving NFT to database:', insertError);
+    }
+
+    // Get the NFT ID for transaction record
+    const { data: nftData } = await supabase
+      .from('nfts')
+      .select('id')
+      .eq('token_id', tokenId)
+      .eq('contract_address', CONTRACTS.SAKURA_NFT)
+      .single();
+
     // Record transaction
-    await supabase.from('transactions').insert({
-      nft_id: (await supabase.from('nfts').select('id').eq('token_id', tokenId).eq('contract_address', CONTRACTS.SAKURA_NFT).single()).data?.id,
-      from_address: ethers.ZeroAddress,
-      to_address: ownerAddress.toLowerCase(),
-      type: 'mint',
-      tx_hash: receipt.hash
-    });
+    if (nftData) {
+      await supabase.from('transactions').insert({
+        nft_id: nftData.id,
+        from_address: ethers.ZeroAddress,
+        to_address: ownerAddress.toLowerCase(),
+        type: 'mint',
+        tx_hash: receipt.hash
+      });
+    }
 
     return { tokenId, imageUrl, metadataUri };
   } catch (error: any) {
     console.error('Error minting NFT:', error);
-    throw error;
+    
+    // Provide more helpful error messages
+    if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+      throw new Error('Transaction was rejected by user');
+    } else if (error.code === 'INSUFFICIENT_FUNDS' || error.code === -32000) {
+      throw new Error('Insufficient funds for gas fees');
+    } else if (error.code === 'NETWORK_ERROR') {
+      throw new Error('Network error. Please check your connection and try again.');
+    } else if (error.message) {
+      throw new Error(error.message);
+    } else {
+      throw new Error('Failed to mint NFT. Please check console for details.');
+    }
   }
 }
 
