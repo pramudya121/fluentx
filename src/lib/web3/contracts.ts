@@ -99,12 +99,40 @@ export async function mintNFT(
     const gasPrice = feeData.gasPrice;
 
     // Mint NFT with explicit gas parameters
-    const tx = await nftContract.mintNFT(ownerAddress, metadataUri, {
-      gasLimit,
-      gasPrice
-    });
+    let tx;
+    try {
+      console.log('Calling mintNFT with:', { ownerAddress, metadataUri, gasLimit: gasLimit.toString() });
+      tx = await nftContract.mintNFT(ownerAddress, metadataUri, {
+        gasLimit,
+        gasPrice
+      });
+      console.log('Transaction sent:', tx.hash);
+    } catch (contractError: any) {
+      console.error('Contract call failed:', contractError);
+      
+      // Parse specific error messages
+      if (contractError.reason) {
+        throw new Error(`Contract error: ${contractError.reason}`);
+      } else if (contractError.code === 'ACTION_REJECTED') {
+        throw new Error('Transaction was rejected by user');
+      } else if (contractError.code === 'INSUFFICIENT_FUNDS') {
+        throw new Error('Insufficient funds for gas fees');
+      } else if (contractError.message) {
+        throw new Error(`Transaction failed: ${contractError.message}`);
+      } else {
+        throw new Error('Failed to send transaction. Please check your wallet and network connection.');
+      }
+    }
     
-    const receipt = await tx.wait();
+    let receipt;
+    try {
+      console.log('Waiting for transaction confirmation...');
+      receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
+    } catch (waitError: any) {
+      console.error('Transaction wait failed:', waitError);
+      throw new Error('Transaction confirmation failed. Please check the transaction status in your wallet.');
+    }
     
     if (!receipt || receipt.status === 0) {
       throw new Error('Transaction failed. Please check your transaction on block explorer.');
@@ -166,17 +194,24 @@ export async function mintNFT(
   } catch (error: any) {
     console.error('Error minting NFT:', error);
     
-    // Provide more helpful error messages
+    // Provide user-friendly error messages based on error type
     if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
       throw new Error('Transaction was rejected by user');
     } else if (error.code === 'INSUFFICIENT_FUNDS' || error.code === -32000) {
       throw new Error('Insufficient funds for gas fees');
-    } else if (error.code === 'NETWORK_ERROR') {
+    } else if (error.code === 'NETWORK_ERROR' || error.code === 'NETWORK_ERROR') {
       throw new Error('Network error. Please check your connection and try again.');
+    } else if (error.code === -32603) {
+      // Internal JSON-RPC error - usually contract revert
+      throw new Error('Contract execution failed. Please ensure the contract address is correct and the network is Fluent Testnet.');
+    } else if (error.reason) {
+      throw new Error(`Contract error: ${error.reason}`);
+    } else if (error.message && error.message.includes('could not coalesce')) {
+      throw new Error('Contract call failed. Please verify you are connected to Fluent Testnet and the contract is deployed correctly.');
     } else if (error.message) {
       throw new Error(error.message);
     } else {
-      throw new Error('Failed to mint NFT. Please check console for details.');
+      throw new Error('Failed to mint NFT. Please check your wallet connection and network settings.');
     }
   }
 }
