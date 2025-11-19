@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Eye, ShoppingCart } from 'lucide-react';
+import { Search, Filter, Eye, ShoppingCart, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useWeb3 } from '@/contexts/Web3Context';
+import { buyNFT } from '@/lib/web3/contracts';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface NFT {
   id: string;
@@ -28,6 +30,8 @@ export default function Marketplace() {
   const [sortBy, setSortBy] = useState('recent');
   const [priceFilter, setPriceFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [buyingNFT, setBuyingNFT] = useState<NFT | null>(null);
+  const [buying, setBuying] = useState(false);
 
   useEffect(() => {
     fetchNFTs();
@@ -107,6 +111,41 @@ export default function Marketplace() {
     });
 
     setFilteredNfts(filtered);
+  }
+
+  async function handleBuy(nft: NFT) {
+    if (!account) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    const activeListing = nft.listings?.find(l => l.active);
+    if (!activeListing) {
+      toast.error('This NFT is not listed for sale');
+      return;
+    }
+
+    setBuyingNFT(nft);
+  }
+
+  async function confirmBuy() {
+    if (!buyingNFT || !buyingNFT.listings?.length) return;
+
+    const activeListing = buyingNFT.listings.find(l => l.active);
+    if (!activeListing) return;
+
+    setBuying(true);
+    try {
+      await buyNFT(activeListing.listing_id, activeListing.price);
+      toast.success(`Successfully purchased ${buyingNFT.name}!`);
+      setBuyingNFT(null);
+      fetchNFTs(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error buying NFT:', error);
+      toast.error(error.message || 'Failed to buy NFT');
+    } finally {
+      setBuying(false);
+    }
   }
 
   if (loading) {
@@ -213,18 +252,78 @@ export default function Marketplace() {
                       View
                     </Button>
                   </Link>
-                  <Link to={`/nft/${nft.id}`} className="flex-1">
-                    <Button className="w-full bg-gradient-to-r from-primary to-primary-glow">
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Buy
-                    </Button>
-                  </Link>
+                  <Button 
+                    onClick={() => handleBuy(nft)}
+                    disabled={!account || nft.owner_address.toLowerCase() === account?.toLowerCase()}
+                    className="flex-1 bg-gradient-to-r from-primary to-primary-glow"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {nft.owner_address.toLowerCase() === account?.toLowerCase() ? 'Owned' : 'Buy'}
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      {/* Buy Confirmation Dialog */}
+      <Dialog open={!!buyingNFT} onOpenChange={() => !buying && setBuyingNFT(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Purchase</DialogTitle>
+            <DialogDescription>
+              Review the details before completing your purchase.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {buyingNFT && (
+            <div className="space-y-4">
+              <div className="aspect-square w-full overflow-hidden rounded-lg">
+                <img 
+                  src={buyingNFT.image_url} 
+                  alt={buyingNFT.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">{buyingNFT.name}</h3>
+                <p className="text-sm text-muted-foreground">{buyingNFT.description}</p>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                <span className="text-sm font-medium">Total Price</span>
+                <span className="text-xl font-bold text-primary">
+                  {buyingNFT.listings?.[0]?.price} ETH
+                </span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setBuyingNFT(null)}
+              disabled={buying}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmBuy}
+              disabled={buying}
+              className="bg-gradient-to-r from-primary to-primary-glow"
+            >
+              {buying ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm Purchase'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
