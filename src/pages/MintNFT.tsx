@@ -68,12 +68,27 @@ export default function MintNFT() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(selectedFile.type)) {
+        toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (selectedFile.size > maxSize) {
+        toast.error('Image size must be less than 10MB');
+        return;
+      }
+
       setFile(selectedFile);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
       };
       reader.readAsDataURL(selectedFile);
+      toast.success('Image loaded successfully');
     }
   };
 
@@ -88,8 +103,23 @@ export default function MintNFT() {
       return;
     }
 
-    if (!file || !name) {
-      toast.error('Please fill in all required fields');
+    if (!file) {
+      toast.error('Please upload an image');
+      return;
+    }
+
+    if (!name || name.trim().length === 0) {
+      toast.error('Please enter a name for your NFT');
+      return;
+    }
+
+    if (name.trim().length > 100) {
+      toast.error('NFT name must be less than 100 characters');
+      return;
+    }
+
+    if (description && description.trim().length > 500) {
+      toast.error('Description must be less than 500 characters');
       return;
     }
 
@@ -100,7 +130,7 @@ export default function MintNFT() {
       // Show different loading stages
       loadingToast = toast.loading('Uploading image to storage...');
       
-      const { tokenId } = await mintNFT(file, name, description, account);
+      const { tokenId } = await mintNFT(file, name.trim(), description.trim(), account);
       
       toast.dismiss(loadingToast);
       toast.success(`NFT minted successfully! Token ID: ${tokenId}`, {
@@ -233,18 +263,19 @@ export default function MintNFT() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
+                <Label htmlFor="name">Name * ({name.length}/100)</Label>
                 <Input
                   id="name"
                   placeholder="Enter NFT name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={minting || networkStatus !== 'correct'}
+                  maxLength={100}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description ({description.length}/500)</Label>
                 <Textarea
                   id="description"
                   placeholder="Enter NFT description (optional)"
@@ -252,6 +283,7 @@ export default function MintNFT() {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   disabled={minting || networkStatus !== 'correct'}
+                  maxLength={500}
                 />
               </div>
 

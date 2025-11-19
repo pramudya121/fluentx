@@ -174,6 +174,10 @@ export default function Profile() {
   };
 
   function handleListNFT(nft: NFT) {
+    if (!account) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
     setListingNFT(nft);
     setListPrice('');
   }
@@ -186,12 +190,18 @@ export default function Profile() {
 
     const price = parseFloat(listPrice);
     if (isNaN(price) || price <= 0) {
-      toast.error('Please enter a valid price');
+      toast.error('Please enter a valid price greater than 0');
+      return;
+    }
+
+    if (price < 0.0001) {
+      toast.error('Minimum listing price is 0.0001 ETH');
       return;
     }
 
     setListing(true);
     try {
+      toast.info('Approving marketplace contract...');
       await listNFT(listingNFT.token_id, listPrice);
       toast.success(`Successfully listed ${listingNFT.name} for ${listPrice} ETH!`);
       setListingNFT(null);
@@ -500,7 +510,7 @@ export default function Profile() {
                   id="list-price"
                   type="number"
                   step="0.001"
-                  min="0"
+                  min="0.0001"
                   placeholder="0.1"
                   value={listPrice}
                   onChange={(e) => setListPrice(e.target.value)}
