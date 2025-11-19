@@ -129,13 +129,20 @@ export default function Marketplace() {
   }
 
   async function confirmBuy() {
-    if (!buyingNFT || !buyingNFT.listings?.length) return;
+    if (!buyingNFT || !buyingNFT.listings?.length) {
+      toast.error('Unable to process purchase');
+      return;
+    }
 
     const activeListing = buyingNFT.listings.find(l => l.active);
-    if (!activeListing) return;
+    if (!activeListing) {
+      toast.error('This NFT is no longer available');
+      return;
+    }
 
     setBuying(true);
     try {
+      toast.info(`Processing purchase of ${buyingNFT.name}...`);
       await buyNFT(activeListing.listing_id, activeListing.price);
       toast.success(`Successfully purchased ${buyingNFT.name}!`);
       setBuyingNFT(null);

@@ -119,31 +119,58 @@ export default function NFTDetail() {
   }
 
   async function handleBuy() {
-    if (!nft || !nft.listings?.length || !account) return;
+    if (!account) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    if (!nft || !nft.listings?.length) {
+      toast.error('This NFT is not available for purchase');
+      return;
+    }
 
     const activeListing = nft.listings.find(l => l.active);
-    if (!activeListing) return;
+    if (!activeListing) {
+      toast.error('This NFT is no longer listed');
+      return;
+    }
 
     setBuying(true);
     try {
+      toast.info(`Processing purchase of ${nft.name} for ${activeListing.price} ETH...`);
       await buyNFT(activeListing.listing_id, activeListing.price);
-      toast.success('NFT purchased successfully!');
+      toast.success(`Successfully purchased ${nft.name}! Redirecting to your profile...`);
       setTimeout(() => navigate('/profile'), 2000);
     } catch (error: any) {
       console.error('Error buying NFT:', error);
-      toast.error(error.message || 'Failed to buy NFT');
+      toast.error(error.message || 'Failed to purchase NFT');
     } finally {
       setBuying(false);
     }
   }
 
   async function handleList() {
-    if (!nft || !account || !listPrice) return;
+    if (!nft || !account || !listPrice) {
+      toast.error('Please enter a price');
+      return;
+    }
+
+    const price = parseFloat(listPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price greater than 0');
+      return;
+    }
+
+    if (price < 0.0001) {
+      toast.error('Minimum listing price is 0.0001 ETH');
+      return;
+    }
 
     setListing(true);
     try {
+      toast.info('Approving marketplace contract...');
       await listNFT(nft.token_id, listPrice);
-      toast.success('NFT listed successfully!');
+      toast.success(`NFT listed successfully for ${listPrice} ETH!`);
       setListPrice('');
       fetchNFTDetails();
     } catch (error: any) {
@@ -155,12 +182,32 @@ export default function NFTDetail() {
   }
 
   async function handleMakeOffer() {
-    if (!nft || !account || !offerPrice) return;
+    if (!nft || !account || !offerPrice) {
+      toast.error('Please enter an offer price');
+      return;
+    }
+
+    const price = parseFloat(offerPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price greater than 0');
+      return;
+    }
+
+    if (price < 0.0001) {
+      toast.error('Minimum offer price is 0.0001 ETH');
+      return;
+    }
+
+    if (hasActiveListing && price >= parseFloat(activeListing.price)) {
+      toast.error(`Your offer should be less than the listing price (${activeListing.price} ETH). Consider buying directly instead.`);
+      return;
+    }
 
     setOffering(true);
     try {
+      toast.info('Submitting offer...');
       await makeOffer(nft.token_id, offerPrice);
-      toast.success('Offer submitted successfully!');
+      toast.success(`Offer of ${offerPrice} ETH submitted successfully!`);
       setOfferPrice('');
       fetchOffers();
     } catch (error: any) {
@@ -171,13 +218,21 @@ export default function NFTDetail() {
     }
   }
 
-  async function handleAcceptOffer(offerAddress: string) {
-    if (!nft || !account) return;
+  async function handleAcceptOffer(offerAddress: string, offerPrice: string) {
+    if (!nft || !account) {
+      toast.error('Unable to accept offer');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to accept this offer of ${offerPrice} ETH from ${formatAddress(offerAddress)}?`)) {
+      return;
+    }
 
     setAccepting(offerAddress);
     try {
+      toast.info('Accepting offer...');
       await acceptOffer(nft.token_id, offerAddress);
-      toast.success('Offer accepted!');
+      toast.success(`Offer of ${offerPrice} ETH accepted! Redirecting...`);
       setTimeout(() => navigate('/profile'), 2000);
     } catch (error: any) {
       console.error('Error accepting offer:', error);
@@ -188,12 +243,20 @@ export default function NFTDetail() {
   }
 
   async function handleCancelOffer() {
-    if (!nft || !account) return;
+    if (!nft || !account) {
+      toast.error('Unable to cancel offer');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel your offer? This action cannot be undone.')) {
+      return;
+    }
 
     setCancelling(true);
     try {
+      toast.info('Cancelling offer...');
       await cancelOffer(nft.token_id);
-      toast.success('Offer cancelled');
+      toast.success('Offer cancelled successfully!');
       fetchOffers();
     } catch (error: any) {
       console.error('Error cancelling offer:', error);
@@ -303,7 +366,7 @@ export default function NFTDetail() {
                         <Input
                           type="number"
                           step="0.001"
-                          min="0"
+                          min="0.0001"
                           placeholder="Price in ETH"
                           value={listPrice}
                           onChange={(e) => setListPrice(e.target.value)}
@@ -338,7 +401,7 @@ export default function NFTDetail() {
                           </div>
                           <Button
                             size="sm"
-                            onClick={() => handleAcceptOffer(offer.offerer_address)}
+                            onClick={() => handleAcceptOffer(offer.offerer_address, offer.price)}
                             disabled={accepting === offer.offerer_address}
                             className="bg-gradient-to-r from-primary to-primary-glow"
                           >
@@ -403,7 +466,7 @@ export default function NFTDetail() {
                         <Input
                           type="number"
                           step="0.001"
-                          min="0"
+                          min="0.0001"
                           placeholder="Offer price in ETH"
                           value={offerPrice}
                           onChange={(e) => setOfferPrice(e.target.value)}
