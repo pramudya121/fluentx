@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { User, Edit, Save, X, Star, Package, Tag } from 'lucide-react';
+import { User, Edit, Save, X, Star, Package, Tag, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { listNFT } from '@/lib/web3/contracts';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Profile {
   username: string;
@@ -25,6 +27,7 @@ interface NFT {
   id: string;
   token_id: number;
   name: string;
+  description?: string;
   image_url: string;
   listings?: { active: boolean; price: string }[];
 }
@@ -52,6 +55,9 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [listingNFT, setListingNFT] = useState<NFT | null>(null);
+  const [listPrice, setListPrice] = useState('');
+  const [listing, setListing] = useState(false);
 
   useEffect(() => {
     if (account) {
@@ -166,6 +172,38 @@ export default function Profile() {
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
+
+  function handleListNFT(nft: NFT) {
+    setListingNFT(nft);
+    setListPrice('');
+  }
+
+  async function confirmList() {
+    if (!listingNFT || !listPrice) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    const price = parseFloat(listPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    setListing(true);
+    try {
+      await listNFT(listingNFT.token_id, listPrice);
+      toast.success(`Successfully listed ${listingNFT.name} for ${listPrice} ETH!`);
+      setListingNFT(null);
+      setListPrice('');
+      fetchOwnedNFTs(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error listing NFT:', error);
+      toast.error(error.message || 'Failed to list NFT');
+    } finally {
+      setListing(false);
+    }
+  }
 
   if (!account) {
     return (
@@ -358,8 +396,8 @@ export default function Profile() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {ownedNFTs.map((nft) => (
-                  <Link key={nft.id} to={`/nft/${nft.id}`}>
-                    <Card className="group hover-glow overflow-hidden">
+                  <Card key={nft.id} className="group hover-glow overflow-hidden">
+                    <Link to={`/nft/${nft.id}`}>
                       <div className="aspect-square overflow-hidden">
                         <img
                           src={nft.image_url}
@@ -367,16 +405,29 @@ export default function Profile() {
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
                       </div>
-                      <CardContent className="pt-4">
-                        <h3 className="font-bold text-lg mb-2 truncate">{nft.name}</h3>
-                        {nft.listings?.some(l => l.active) && (
+                    </Link>
+                    <CardContent className="pt-4">
+                      <Link to={`/nft/${nft.id}`}>
+                        <h3 className="font-bold text-lg mb-2 truncate hover:text-primary">{nft.name}</h3>
+                      </Link>
+                      <div className="flex items-center justify-between gap-2">
+                        {nft.listings?.some(l => l.active) ? (
                           <Badge variant="outline" className="text-primary">
-                            Listed for {nft.listings.find(l => l.active)?.price} ETH
+                            {nft.listings.find(l => l.active)?.price} ETH
                           </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleListNFT(nft)}
+                            className="w-full bg-gradient-to-r from-primary to-primary-glow"
+                          >
+                            <Tag className="w-3 h-3 mr-1" />
+                            List for Sale
+                          </Button>
                         )}
-                      </CardContent>
-                    </Card>
-                  </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
@@ -419,6 +470,71 @@ export default function Profile() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* List NFT Dialog */}
+      <Dialog open={!!listingNFT} onOpenChange={() => !listing && setListingNFT(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>List NFT for Sale</DialogTitle>
+            <DialogDescription>
+              Set a price for your NFT to list it on the marketplace.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {listingNFT && (
+            <div className="space-y-4">
+              <div className="aspect-square w-full overflow-hidden rounded-lg">
+                <img 
+                  src={listingNFT.image_url} 
+                  alt={listingNFT.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">{listingNFT.name}</h3>
+                <p className="text-sm text-muted-foreground">{listingNFT.description}</p>
+              </div>
+              <div>
+                <Label htmlFor="list-price">List Price (ETH)</Label>
+                <Input
+                  id="list-price"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  placeholder="0.1"
+                  value={listPrice}
+                  onChange={(e) => setListPrice(e.target.value)}
+                  disabled={listing}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setListingNFT(null)}
+              disabled={listing}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmList}
+              disabled={listing || !listPrice}
+              className="bg-gradient-to-r from-primary to-primary-glow"
+            >
+              {listing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Listing...
+                </>
+              ) : (
+                'Confirm Listing'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
