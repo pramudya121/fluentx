@@ -61,31 +61,46 @@ export async function switchToFluentTestnet(provider?: any): Promise<void> {
   }
 
   try {
+    // Try to switch to the network first
     await ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: FLUENT_TESTNET.chainIdHex }],
     });
+    console.log('Successfully switched to Fluent Testnet');
   } catch (switchError: any) {
-    // Chain not added, add it
-    if (switchError.code === 4902) {
+    console.log('Switch error:', switchError);
+    
+    // Chain not added yet, try to add it (error code 4902)
+    if (switchError.code === 4902 || switchError.code === -32603) {
       try {
+        console.log('Adding Fluent Testnet to wallet...');
         await ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [
             {
               chainId: FLUENT_TESTNET.chainIdHex,
               chainName: FLUENT_TESTNET.name,
-              nativeCurrency: FLUENT_TESTNET.nativeCurrency,
+              nativeCurrency: {
+                name: FLUENT_TESTNET.nativeCurrency.name,
+                symbol: FLUENT_TESTNET.nativeCurrency.symbol,
+                decimals: FLUENT_TESTNET.nativeCurrency.decimals,
+              },
               rpcUrls: [FLUENT_TESTNET.rpcUrl],
               blockExplorerUrls: [FLUENT_TESTNET.blockExplorer],
             },
           ],
         });
-      } catch (addError) {
-        throw new Error('Failed to add FLUENT Testnet to wallet');
+        console.log('Successfully added Fluent Testnet');
+      } catch (addError: any) {
+        console.error('Error adding network:', addError);
+        throw new Error(addError.message || 'Failed to add Fluent Testnet to wallet. Please add it manually.');
       }
+    } else if (switchError.code === 4001) {
+      // User rejected the request
+      throw new Error('Network switch rejected by user');
     } else {
-      throw switchError;
+      // Other errors
+      throw new Error(switchError.message || 'Failed to switch network');
     }
   }
 }
