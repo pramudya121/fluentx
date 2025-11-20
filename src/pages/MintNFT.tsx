@@ -9,7 +9,7 @@ import { useWeb3 } from '@/contexts/Web3Context';
 import { mintNFT } from '@/lib/web3/contracts';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { getProvider, switchToFluentTestnet } from '@/lib/web3/wallet';
+import { getProvider, switchToFluentTestnet, setupChainChangeListener } from '@/lib/web3/wallet';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function MintNFT() {
@@ -38,7 +38,12 @@ export default function MintNFT() {
         }
 
         const network = await provider.getNetwork();
-        const chainId = Number(network.chainId);
+        // Handle both BigInt and number for chainId
+        const chainId = typeof network.chainId === 'bigint' 
+          ? Number(network.chainId) 
+          : network.chainId;
+        
+        console.log('Current Chain ID:', chainId, 'Expected: 20994');
         
         if (chainId === 20994) {
           setNetworkStatus('correct');
@@ -52,13 +57,39 @@ export default function MintNFT() {
     };
 
     checkNetwork();
+
+    // Listen for chain changes
+    const cleanup = setupChainChangeListener(() => {
+      console.log('Chain changed, rechecking network...');
+      checkNetwork();
+    });
+
+    return cleanup;
   }, [account]);
 
   const handleSwitchNetwork = async () => {
     try {
       await switchToFluentTestnet();
-      setNetworkStatus('correct');
-      toast.success('Switched to Fluent Testnet');
+      
+      // Wait a bit for the network to switch, then recheck
+      setTimeout(async () => {
+        const provider = await getProvider();
+        if (provider) {
+          const network = await provider.getNetwork();
+          const chainId = typeof network.chainId === 'bigint' 
+            ? Number(network.chainId) 
+            : network.chainId;
+          
+          console.log('After switch - Chain ID:', chainId);
+          
+          if (chainId === 20994) {
+            setNetworkStatus('correct');
+            toast.success('Successfully switched to Fluent Testnet');
+          } else {
+            toast.error('Please manually switch to Fluent Testnet in your wallet');
+          }
+        }
+      }, 500);
     } catch (error: any) {
       console.error('Error switching network:', error);
       toast.error(error.message || 'Failed to switch network');
