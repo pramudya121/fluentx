@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { User, Edit, Save, X, Star, Package, Tag, Loader2 } from 'lucide-react';
+import { User, Edit, Save, X, Star, Package, Tag, Loader2, Upload, Camera, Mail, XCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { listNFT } from '@/lib/web3/contracts';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+interface Offer {
+  id: string;
+  price: string;
+  offerer_address: string;
+  status: string;
+  created_at: string;
+  nfts: {
+    id: string;
+    name: string;
+    image_url: string;
+    token_id: number;
+  } | null;
+}
 
 interface Profile {
   username: string;
@@ -52,18 +66,22 @@ export default function Profile() {
   });
   const [ownedNFTs, setOwnedNFTs] = useState<NFT[]>([]);
   const [badges, setBadges] = useState<UserBadge[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [listingNFT, setListingNFT] = useState<NFT | null>(null);
   const [listPrice, setListPrice] = useState('');
   const [listing, setListing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (account) {
       fetchProfile();
       fetchOwnedNFTs();
       fetchBadges();
+      fetchOffers();
     }
   }, [account]);
 
@@ -139,6 +157,115 @@ export default function Profile() {
       }
     } catch (error) {
       console.error('Error fetching badges:', error);
+    }
+  }
+
+  async function fetchOffers() {
+    if (!account) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('offers')
+        .select(`
+          *,
+          nfts(id, name, image_url, token_id, owner_address)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Filter offers for NFTs owned by current user
+      const myOffers = (data || []).filter(offer => 
+        offer.nfts && offer.nfts.owner_address.toLowerCase() === account.toLowerCase()
+      );
+      
+      setOffers(myOffers);
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+    }
+  }
+
+  async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !account) return;
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      toast.error('Only JPG, PNG, WEBP, and GIF images are allowed');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Delete old avatar if exists
+      if (profile.avatar_url) {
+        const oldPath = profile.avatar_url.split('/').pop();
+        if (oldPath) {
+          await supabase.storage
+            .from('avatars')
+            .remove([`${account}/${oldPath}`]);
+        }
+      }
+
+      // Upload new avatar
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${account}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          wallet_address: account.toLowerCase(),
+          avatar_url: data.publicUrl,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'wallet_address'
+        });
+
+      if (updateError) throw updateError;
+
+      setProfile({ ...profile, avatar_url: data.publicUrl });
+      toast.success('Avatar updated successfully!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Failed to upload avatar');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleCancelOffer(offerId: string) {
+    try {
+      const { error } = await supabase
+        .from('offers')
+        .update({ status: 'cancelled' })
+        .eq('id', offerId);
+
+      if (error) throw error;
+      
+      toast.success('Offer cancelled successfully');
+      fetchOffers(); // Refresh offers
+    } catch (error) {
+      console.error('Error cancelling offer:', error);
+      toast.error('Failed to cancel offer');
     }
   }
 
@@ -250,7 +377,7 @@ export default function Profile() {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-6">
               {/* Avatar */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 relative group">
                 <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-4xl overflow-hidden">
                   {profile.avatar_url ? (
                     <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
@@ -258,6 +385,28 @@ export default function Profile() {
                     <User className="w-16 h-16 text-white" />
                   )}
                 </div>
+                {isEditing && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      {uploading ? (
+                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                      ) : (
+                        <Camera className="w-8 h-8 text-white" />
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Info */}
@@ -378,7 +527,7 @@ export default function Profile() {
 
         {/* NFTs Tabs */}
         <Tabs defaultValue="owned">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="owned">
               <Package className="w-4 h-4 mr-2" />
               Owned ({ownedNFTs.length})
@@ -386,6 +535,10 @@ export default function Profile() {
             <TabsTrigger value="listed">
               <Tag className="w-4 h-4 mr-2" />
               Listed ({ownedNFTs.filter(nft => nft.listings?.some(l => l.active)).length})
+            </TabsTrigger>
+            <TabsTrigger value="offers">
+              <Mail className="w-4 h-4 mr-2" />
+              Offers ({offers.filter(o => o.status === 'pending').length})
             </TabsTrigger>
           </TabsList>
 
@@ -474,6 +627,89 @@ export default function Profile() {
                         </CardContent>
                       </Card>
                     </Link>
+                  ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="offers">
+            {offers.filter(o => o.status === 'pending').length === 0 ? (
+              <Card className="glass-card">
+                <CardContent className="py-20 text-center">
+                  <Mail className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-2xl font-semibold mb-2">No active offers</h3>
+                  <p className="text-muted-foreground">You haven't received any offers yet</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {offers
+                  .filter(o => o.status === 'pending')
+                  .map((offer) => (
+                    <Card key={offer.id} className="glass-card hover-glow">
+                      <CardContent className="py-4">
+                        <div className="flex flex-col md:flex-row gap-4">
+                          {/* NFT Image */}
+                          {offer.nfts && (
+                            <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                              <img
+                                src={offer.nfts.image_url}
+                                alt={offer.nfts.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+
+                          {/* Offer Details */}
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="font-bold text-lg">{offer.nfts?.name}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Offer from: <span className="font-mono">{formatAddress(offer.offerer_address)}</span>
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="text-primary">
+                                {offer.status}
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Offer Price</p>
+                                <p className="text-2xl font-bold text-primary">{offer.price} ETH</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">Received</p>
+                                <p className="text-sm">
+                                  {new Date(offer.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 pt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCancelOffer(offer.id)}
+                                className="flex-1"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Decline
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 bg-gradient-to-r from-primary to-primary-glow"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Accept
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
               </div>
             )}

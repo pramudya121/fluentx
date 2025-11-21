@@ -8,57 +8,58 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Winter Sakura Theme - Light & Elegant */
-    --background: 210 20% 98%;
-    --foreground: 330 15% 20%;
+    /* Winter Sakura Theme - Light & Elegant with Enhanced Contrast */
+    --background: 210 25% 97%;
+    --foreground: 330 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 330 15% 20%;
+    --card-foreground: 330 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 330 15% 20%;
+    --popover-foreground: 330 20% 15%;
 
-    /* Sakura Pink - Main brand color */
-    --primary: 330 80% 65%;
+    /* Sakura Pink - Main brand color with better contrast */
+    --primary: 330 85% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 330 90% 75%;
+    --primary-glow: 330 90% 70%;
 
-    /* Snow/Ice Blue - Secondary */
-    --secondary: 210 30% 96%;
-    --secondary-foreground: 210 30% 25%;
+    /* Snow/Ice Blue - Secondary with improved readability */
+    --secondary: 210 35% 94%;
+    --secondary-foreground: 210 40% 20%;
 
-    --muted: 210 20% 95%;
-    --muted-foreground: 210 15% 45%;
+    --muted: 210 25% 93%;
+    --muted-foreground: 210 20% 40%;
 
-    /* Soft accent */
-    --accent: 330 70% 90%;
-    --accent-foreground: 330 80% 35%;
+    /* Enhanced accent */
+    --accent: 330 75% 88%;
+    --accent-foreground: 330 85% 30%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 90%;
-    --input: 210 20% 92%;
-    --ring: 330 80% 65%;
+    --border: 210 25% 88%;
+    --input: 210 25% 90%;
+    --ring: 330 85% 60%;
 
     --radius: 0.75rem;
 
     /* Custom design tokens for sakura theme */
-    --sakura-pink: 330 80% 65%;
-    --sakura-light: 330 90% 85%;
-    --snow-blue: 210 40% 95%;
-    --ice-blue: 200 50% 85%;
-    --winter-gray: 210 15% 65%;
+    --sakura-pink: 330 85% 60%;
+    --sakura-light: 330 90% 80%;
+    --snow-blue: 210 45% 93%;
+    --ice-blue: 200 55% 82%;
+    --winter-gray: 210 18% 60%;
 
-    /* Gradients */
-    --gradient-sakura: linear-gradient(135deg, hsl(330 90% 75%) 0%, hsl(330 80% 65%) 100%);
-    --gradient-winter: linear-gradient(180deg, hsl(210 40% 98%) 0%, hsl(210 30% 96%) 100%);
-    --gradient-card: linear-gradient(135deg, hsla(0 0% 100% / 0.9) 0%, hsla(330 70% 95% / 0.8) 100%);
+    /* Enhanced Gradients */
+    --gradient-sakura: linear-gradient(135deg, hsl(330 90% 70%) 0%, hsl(330 85% 60%) 100%);
+    --gradient-winter: linear-gradient(180deg, hsl(210 45% 96%) 0%, hsl(210 35% 93%) 100%);
+    --gradient-card: linear-gradient(135deg, hsla(0 0% 100% / 0.95) 0%, hsla(330 75% 94% / 0.85) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(210 45% 96%) 0%, hsl(330 85% 95%) 50%, hsl(210 40% 94%) 100%);
 
-    /* Shadows */
-    --shadow-sakura: 0 10px 40px -10px hsl(330 80% 65% / 0.3);
-    --shadow-card: 0 4px 20px -4px hsl(330 60% 70% / 0.15);
-    --shadow-glow: 0 0 30px hsl(330 90% 75% / 0.4);
+    /* Enhanced Shadows */
+    --shadow-sakura: 0 12px 45px -12px hsl(330 85% 60% / 0.35);
+    --shadow-card: 0 4px 24px -6px hsl(330 70% 65% / 0.18);
+    --shadow-glow: 0 0 35px hsl(330 90% 70% / 0.45);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -66,48 +67,49 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 230 25% 10%;
-    --foreground: 330 70% 90%;
+    --background: 230 30% 8%;
+    --foreground: 330 75% 88%;
 
-    --card: 230 20% 15%;
-    --card-foreground: 330 70% 90%;
+    --card: 230 25% 12%;
+    --card-foreground: 330 75% 88%;
 
-    --popover: 230 20% 15%;
-    --popover-foreground: 330 70% 90%;
+    --popover: 230 25% 12%;
+    --popover-foreground: 330 75% 88%;
 
-    --primary: 330 75% 60%;
+    --primary: 330 80% 58%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 330 85% 70%;
+    --primary-glow: 330 85% 68%;
 
-    --secondary: 230 20% 20%;
-    --secondary-foreground: 330 70% 90%;
+    --secondary: 230 25% 18%;
+    --secondary-foreground: 330 75% 88%;
 
-    --muted: 230 20% 18%;
-    --muted-foreground: 210 20% 60%;
+    --muted: 230 25% 16%;
+    --muted-foreground: 210 25% 58%;
 
-    --accent: 330 60% 30%;
-    --accent-foreground: 330 90% 85%;
+    --accent: 330 65% 28%;
+    --accent-foreground: 330 90% 83%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 230 20% 25%;
-    --input: 230 20% 22%;
-    --ring: 330 75% 60%;
+    --border: 230 25% 22%;
+    --input: 230 25% 20%;
+    --ring: 330 80% 58%;
 
-    --sakura-pink: 330 75% 60%;
-    --sakura-light: 330 70% 70%;
-    --snow-blue: 230 25% 20%;
-    --ice-blue: 210 40% 30%;
-    --winter-gray: 210 20% 50%;
+    --sakura-pink: 330 80% 58%;
+    --sakura-light: 330 75% 68%;
+    --snow-blue: 230 30% 18%;
+    --ice-blue: 210 45% 28%;
+    --winter-gray: 210 22% 48%;
 
-    --gradient-sakura: linear-gradient(135deg, hsl(330 85% 70%) 0%, hsl(330 75% 60%) 100%);
-    --gradient-winter: linear-gradient(180deg, hsl(230 25% 12%) 0%, hsl(230 20% 15%) 100%);
-    --gradient-card: linear-gradient(135deg, hsla(230 20% 18% / 0.9) 0%, hsla(330 40% 25% / 0.6) 100%);
+    --gradient-sakura: linear-gradient(135deg, hsl(330 85% 68%) 0%, hsl(330 80% 58%) 100%);
+    --gradient-winter: linear-gradient(180deg, hsl(230 30% 10%) 0%, hsl(230 25% 12%) 100%);
+    --gradient-card: linear-gradient(135deg, hsla(230 25% 16% / 0.95) 0%, hsla(330 45% 22% / 0.65) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(230 30% 10%) 0%, hsl(330 50% 15%) 50%, hsl(230 28% 12%) 100%);
 
-    --shadow-sakura: 0 10px 40px -10px hsl(330 75% 50% / 0.5);
-    --shadow-card: 0 4px 20px -4px hsl(330 60% 60% / 0.3);
-    --shadow-glow: 0 0 40px hsl(330 85% 70% / 0.5);
+    --shadow-sakura: 0 12px 50px -14px hsl(330 80% 48% / 0.6);
+    --shadow-card: 0 4px 28px -8px hsl(330 70% 58% / 0.35);
+    --shadow-glow: 0 0 45px hsl(330 85% 68% / 0.55);
   }
 }
 
@@ -119,6 +121,13 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background: linear-gradient(135deg, hsl(210 45% 96%) 0%, hsl(330 85% 95%) 50%, hsl(210 40% 94%) 100%);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background: linear-gradient(135deg, hsl(230 30% 10%) 0%, hsl(330 50% 15%) 50%, hsl(230 28% 12%) 100%);
+    background-attachment: fixed;
   }
 
   /* Sakura falling animation */
@@ -154,11 +163,18 @@ All colors MUST be HSL.
     animation: sakura-fall linear infinite, sakura-sway ease-in-out infinite;
   }
 
-  /* Glassmorphism effect */
+  /* Glassmorphism effect with enhanced contrast */
   .glass-card {
-    background: linear-gradient(135deg, hsla(0 0% 100% / 0.1) 0%, hsla(330 70% 95% / 0.05) 100%);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsla(330 80% 80% / 0.2);
+    background: linear-gradient(135deg, hsla(0 0% 100% / 0.95) 0%, hsla(330 75% 94% / 0.85) 100%);
+    backdrop-filter: blur(16px);
+    border: 1px solid hsla(330 80% 75% / 0.25);
+    box-shadow: var(--shadow-card);
+  }
+
+  .dark .glass-card {
+    background: linear-gradient(135deg, hsla(230 25% 16% / 0.95) 0%, hsla(330 45% 22% / 0.65) 100%);
+    backdrop-filter: blur(16px);
+    border: 1px solid hsla(330 70% 60% / 0.2);
   }
 
   /* Glow effects */
