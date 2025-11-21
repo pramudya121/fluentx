@@ -2,12 +2,18 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Stats {
   totalNFTs: number;
   totalSales: number;
   totalVolume: number;
   activeListings: number;
+}
+
+interface ChartData {
+  name: string;
+  value: number;
 }
 
 export default function Analytics() {
@@ -17,7 +23,12 @@ export default function Analytics() {
     totalVolume: 0,
     activeListings: 0
   });
+  const [salesData, setSalesData] = useState<ChartData[]>([]);
+  const [volumeData, setVolumeData] = useState<ChartData[]>([]);
+  const [distributionData, setDistributionData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--primary-glow))', '#4ade80', '#fbbf24', '#f87171'];
 
   useEffect(() => {
     fetchAnalytics();
@@ -30,11 +41,12 @@ export default function Analytics() {
         .from('nfts')
         .select('*', { count: 'exact', head: true });
 
-      // Total Sales
+      // Total Sales and Volume
       const { data: salesData, count: salesCount } = await supabase
         .from('transactions')
-        .select('price', { count: 'exact' })
-        .eq('type', 'sale');
+        .select('price, created_at', { count: 'exact' })
+        .eq('type', 'sale')
+        .order('created_at', { ascending: true });
 
       // Calculate total volume
       const totalVolume = salesData?.reduce((sum, tx) => sum + parseFloat(tx.price || '0'), 0) || 0;
@@ -51,11 +63,47 @@ export default function Analytics() {
         totalVolume,
         activeListings: listingsCount || 0
       });
+
+      // Prepare chart data
+      prepareSalesData(salesData || []);
+      prepareDistributionData(nftCount || 0, listingsCount || 0, salesCount || 0);
+      
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
     }
+  }
+
+  function prepareSalesData(sales: any[]) {
+    // Group sales by day for the last 7 days
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date.toISOString().split('T')[0];
+    });
+
+    const salesByDay = last7Days.map(day => {
+      const daySales = sales.filter(s => s.created_at.startsWith(day));
+      const volume = daySales.reduce((sum, s) => sum + parseFloat(s.price || '0'), 0);
+      return {
+        name: new Date(day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        sales: daySales.length,
+        volume: parseFloat(volume.toFixed(2))
+      };
+    });
+
+    setSalesData(salesByDay.map(d => ({ name: d.name, value: d.sales })));
+    setVolumeData(salesByDay.map(d => ({ name: d.name, value: d.volume })));
+  }
+
+  function prepareDistributionData(total: number, listed: number, sold: number) {
+    const unlisted = total - listed - sold;
+    setDistributionData([
+      { name: 'Listed', value: listed },
+      { name: 'Sold', value: sold },
+      { name: 'Unlisted', value: Math.max(0, unlisted) },
+    ]);
   }
 
   if (loading) {
@@ -102,19 +150,19 @@ export default function Analytics() {
 
   return (
     <div className="min-h-screen py-8 animate-fade-in">
-      <div className="container mx-auto px-4 max-w-6xl">
+      <div className="container mx-auto px-4 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-            Analytics
+            Analytics Dashboard
           </h1>
           <p className="text-muted-foreground text-lg">
-            Marketplace statistics and insights
+            Comprehensive marketplace insights and statistics
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -136,83 +184,177 @@ export default function Analytics() {
           })}
         </div>
 
-        {/* Additional Analytics Sections */}
-        <div className="grid md:grid-cols-2 gap-6">
+        {/* Charts Grid */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          {/* Sales Trend */}
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Marketplace Insights</CardTitle>
-              <CardDescription>Key performance indicators</CardDescription>
+              <CardTitle>Daily Sales Trend</CardTitle>
+              <CardDescription>Number of sales over the last 7 days</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center p-4 rounded-lg bg-muted/30">
-                <span className="text-sm text-muted-foreground">Average Sale Price</span>
-                <span className="font-semibold">
-                  {stats.totalSales > 0 
-                    ? `${(stats.totalVolume / stats.totalSales).toFixed(3)} ETH`
-                    : 'N/A'
-                  }
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-4 rounded-lg bg-muted/30">
-                <span className="text-sm text-muted-foreground">Listing Rate</span>
-                <span className="font-semibold">
-                  {stats.totalNFTs > 0 
-                    ? `${((stats.activeListings / stats.totalNFTs) * 100).toFixed(1)}%`
-                    : '0%'
-                  }
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-4 rounded-lg bg-muted/30">
-                <span className="text-sm text-muted-foreground">Sales Conversion</span>
-                <span className="font-semibold">
-                  {stats.activeListings > 0 
-                    ? `${((stats.totalSales / (stats.activeListings + stats.totalSales)) * 100).toFixed(1)}%`
-                    : '0%'
-                  }
-                </span>
-              </div>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={salesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="hsl(var(--foreground))" 
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--foreground))" 
+                    fontSize={12}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={3}
+                    dot={{ fill: 'hsl(var(--primary))', r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
+          {/* Volume Trend */}
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Growth Metrics</CardTitle>
-              <CardDescription>Platform activity overview</CardDescription>
+              <CardTitle>Trading Volume</CardTitle>
+              <CardDescription>ETH volume over the last 7 days</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">NFTs Listed</span>
-                  <span className="font-semibold">{stats.activeListings}</span>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={volumeData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="hsl(var(--foreground))" 
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--foreground))" 
+                    fontSize={12}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="hsl(var(--primary))" 
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Distribution and Insights */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* NFT Distribution */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>NFT Distribution</CardTitle>
+              <CardDescription>Breakdown of NFT status</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={distributionData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {distributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Key Metrics */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Key Performance Metrics</CardTitle>
+              <CardDescription>Important marketplace indicators</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Average Sale Price</span>
+                  <span className="font-semibold text-lg">
+                    {stats.totalSales > 0 
+                      ? `${(stats.totalVolume / stats.totalSales).toFixed(3)} ETH`
+                      : 'N/A'
+                    }
+                  </span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="bg-gradient-to-r from-primary to-primary-glow h-2 rounded-full transition-all"
+                    className="bg-gradient-to-r from-primary to-primary-glow h-2 rounded-full"
+                    style={{ width: `${Math.min((stats.totalVolume / stats.totalSales / 10) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Listing Rate</span>
+                  <span className="font-semibold text-lg">
+                    {stats.totalNFTs > 0 
+                      ? `${((stats.activeListings / stats.totalNFTs) * 100).toFixed(1)}%`
+                      : '0%'
+                    }
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
                     style={{ width: `${Math.min((stats.activeListings / stats.totalNFTs) * 100, 100)}%` }}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Sales Completed</span>
-                  <span className="font-semibold">{stats.totalSales}</span>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Sales Conversion</span>
+                  <span className="font-semibold text-lg">
+                    {stats.activeListings > 0 
+                      ? `${((stats.totalSales / (stats.activeListings + stats.totalSales)) * 100).toFixed(1)}%`
+                      : '0%'
+                    }
+                  </span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min((stats.totalSales / stats.totalNFTs) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Trading Volume</span>
-                  <span className="font-semibold">{stats.totalVolume.toFixed(2)} ETH</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min((stats.totalVolume / Math.max(stats.totalVolume, 10)) * 100, 100)}%` }}
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full"
+                    style={{ width: `${Math.min((stats.totalSales / (stats.activeListings + stats.totalSales)) * 100, 100)}%` }}
                   />
                 </div>
               </div>

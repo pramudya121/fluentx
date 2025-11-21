@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity as ActivityIcon, ShoppingBag, Tag, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Activity as ActivityIcon, ShoppingBag, Tag, DollarSign, Sparkles, Filter } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 
 interface Transaction {
@@ -21,7 +22,9 @@ interface Transaction {
 
 export default function Activity() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchTransactions();
@@ -39,6 +42,10 @@ export default function Activity() {
     };
   }, []);
 
+  useEffect(() => {
+    filterTransactions();
+  }, [transactions, typeFilter]);
+
   async function fetchTransactions() {
     try {
       const { data, error } = await supabase
@@ -48,7 +55,7 @@ export default function Activity() {
           nfts(name, image_url)
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (error) throw error;
       setTransactions(data || []);
@@ -59,11 +66,20 @@ export default function Activity() {
     }
   }
 
+  function filterTransactions() {
+    if (typeFilter === 'all') {
+      setFilteredTransactions(transactions);
+    } else {
+      setFilteredTransactions(transactions.filter(tx => tx.type === typeFilter));
+    }
+  }
+
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'mint': return <Tag className="w-5 h-5" />;
+      case 'mint': return <Sparkles className="w-5 h-5" />;
       case 'sale': return <ShoppingBag className="w-5 h-5" />;
-      case 'list': return <DollarSign className="w-5 h-5" />;
+      case 'list': return <Tag className="w-5 h-5" />;
+      case 'offer': return <DollarSign className="w-5 h-5" />;
       default: return <ActivityIcon className="w-5 h-5" />;
     }
   };
@@ -73,6 +89,7 @@ export default function Activity() {
       mint: 'bg-green-500/10 text-green-500 border-green-500/20',
       sale: 'bg-primary/10 text-primary border-primary/20',
       list: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      offer: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
     };
     
     return (
@@ -84,6 +101,13 @@ export default function Activity() {
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Get unique transaction types for filter buttons
+  const transactionTypes = ['all', ...new Set(transactions.map(tx => tx.type))];
+  const getTypeCount = (type: string) => {
+    if (type === 'all') return transactions.length;
+    return transactions.filter(tx => tx.type === type).length;
   };
 
   if (loading) {
@@ -110,20 +134,57 @@ export default function Activity() {
           </p>
         </div>
 
+        {/* Filters */}
+        <Card className="mb-6 glass-card">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by Type:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {transactionTypes.map((type) => (
+                  <Button
+                    key={type}
+                    variant={typeFilter === type ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTypeFilter(type)}
+                    className="capitalize"
+                  >
+                    {getTypeIcon(type)}
+                    <span className="ml-2">{type}</span>
+                    <Badge variant="secondary" className="ml-2">
+                      {getTypeCount(type)}
+                    </Badge>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Results Count */}
+        <div className="mb-4 text-sm text-muted-foreground">
+          Showing {filteredTransactions.length} {typeFilter !== 'all' ? typeFilter : ''} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+        </div>
+
         {/* Activity List */}
         <div className="space-y-4">
-          {transactions.length === 0 ? (
+          {filteredTransactions.length === 0 ? (
             <Card className="glass-card">
               <CardContent className="py-20 text-center">
                 <ActivityIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="text-2xl font-semibold mb-2">No activity yet</h3>
                 <p className="text-muted-foreground">
-                  Start minting and trading NFTs to see activity here
+                  {typeFilter === 'all' 
+                    ? 'Start minting and trading NFTs to see activity here'
+                    : `No ${typeFilter} transactions found`
+                  }
                 </p>
               </CardContent>
             </Card>
           ) : (
-            transactions.map((tx) => (
+            filteredTransactions.map((tx) => (
               <Card key={tx.id} className="glass-card hover-glow">
                 <CardContent className="py-4">
                   <div className="flex items-start gap-4">
