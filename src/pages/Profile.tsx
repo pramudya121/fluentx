@@ -274,23 +274,51 @@ export default function Profile() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      // First check if profile exists
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .upsert({
-          wallet_address: account.toLowerCase(),
-          ...profile,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'wallet_address'
-        });
+        .select('id')
+        .eq('wallet_address', account.toLowerCase())
+        .maybeSingle();
 
-      if (error) throw error;
-      
-      toast.success('Profile updated successfully!');
+      if (existingProfile) {
+        // Update existing profile
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            username: profile.username,
+            bio: profile.bio,
+            avatar_url: profile.avatar_url,
+            twitter_url: profile.twitter_url,
+            discord_url: profile.discord_url,
+            website_url: profile.website_url
+          })
+          .eq('wallet_address', account.toLowerCase());
+
+        if (error) throw error;
+      } else {
+        // Insert new profile
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            wallet_address: account.toLowerCase(),
+            username: profile.username,
+            bio: profile.bio,
+            avatar_url: profile.avatar_url,
+            twitter_url: profile.twitter_url,
+            discord_url: profile.discord_url,
+            website_url: profile.website_url
+          });
+
+        if (error) throw error;
+      }
+
+      toast.success('Profile saved successfully!');
       setIsEditing(false);
+      fetchProfile(); // Refresh profile data
     } catch (error) {
       console.error('Error saving profile:', error);
-      toast.error('Failed to update profile');
+      toast.error('Failed to save profile');
     } finally {
       setSaving(false);
     }
