@@ -38,6 +38,48 @@ export type Database = {
         }
         Relationships: []
       }
+      collections: {
+        Row: {
+          banner_url: string | null
+          category: string | null
+          created_at: string | null
+          creator_address: string
+          description: string | null
+          floor_price: number | null
+          id: string
+          name: string
+          total_items: number | null
+          total_volume: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          banner_url?: string | null
+          category?: string | null
+          created_at?: string | null
+          creator_address: string
+          description?: string | null
+          floor_price?: number | null
+          id?: string
+          name: string
+          total_items?: number | null
+          total_volume?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          banner_url?: string | null
+          category?: string | null
+          created_at?: string | null
+          creator_address?: string
+          description?: string | null
+          floor_price?: number | null
+          id?: string
+          name?: string
+          total_items?: number | null
+          total_volume?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           active: boolean | null
@@ -81,6 +123,7 @@ export type Database = {
       }
       nfts: {
         Row: {
+          collection_id: string | null
           contract_address: string
           created_at: string
           creator_address: string
@@ -95,6 +138,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          collection_id?: string | null
           contract_address: string
           created_at?: string
           creator_address: string
@@ -109,6 +153,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          collection_id?: string | null
           contract_address?: string
           created_at?: string
           creator_address?: string
@@ -122,13 +167,23 @@ export type Database = {
           token_id?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nfts_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
+          action_url: string | null
           created_at: string
           id: string
           message: string
+          metadata: Json | null
           profile_id: string | null
           read: boolean | null
           related_nft_id: string | null
@@ -136,9 +191,11 @@ export type Database = {
           type: string
         }
         Insert: {
+          action_url?: string | null
           created_at?: string
           id?: string
           message: string
+          metadata?: Json | null
           profile_id?: string | null
           read?: boolean | null
           related_nft_id?: string | null
@@ -146,9 +203,11 @@ export type Database = {
           type: string
         }
         Update: {
+          action_url?: string | null
           created_at?: string
           id?: string
           message?: string
+          metadata?: Json | null
           profile_id?: string | null
           read?: boolean | null
           related_nft_id?: string | null
@@ -249,6 +308,44 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          rating: number | null
+          reviewed_address: string
+          reviewer_address: string
+          transaction_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number | null
+          reviewed_address: string
+          reviewer_address: string
+          transaction_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number | null
+          reviewed_address?: string
+          reviewer_address?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           created_at: string
@@ -325,6 +422,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_reputation: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_trusted: boolean | null
+          rating: number | null
+          successful_trades: number | null
+          total_purchases: number | null
+          total_sales: number | null
+          total_volume: number | null
+          updated_at: string | null
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_trusted?: boolean | null
+          rating?: number | null
+          successful_trades?: number | null
+          total_purchases?: number | null
+          total_sales?: number | null
+          total_volume?: number | null
+          updated_at?: string | null
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_trusted?: boolean | null
+          rating?: number | null
+          successful_trades?: number | null
+          total_purchases?: number | null
+          total_sales?: number | null
+          total_volume?: number | null
+          updated_at?: string | null
+          wallet_address?: string
+        }
+        Relationships: []
       }
       watchlist: {
         Row: {
