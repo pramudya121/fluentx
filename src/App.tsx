@@ -8,6 +8,8 @@ import Navbar from "@/components/Navbar";
 import SakuraBackground from "@/components/SakuraBackground";
 import Index from "./pages/Index";
 import Marketplace from "./pages/Marketplace";
+import Collections from "./pages/Collections";
+import CollectionDetail from "./pages/CollectionDetail";
 import MintNFT from "./pages/MintNFT";
 import Activity from "./pages/Activity";
 import Leaderboard from "./pages/Leaderboard";
@@ -33,6 +35,8 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/marketplace" element={<Marketplace />} />
+                  <Route path="/collections" element={<Collections />} />
+                  <Route path="/collections/:id" element={<CollectionDetail />} />
                   <Route path="/mint" element={<MintNFT />} />
                   <Route path="/activity" element={<Activity />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />

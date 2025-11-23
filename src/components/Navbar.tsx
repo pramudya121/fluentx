@@ -1,18 +1,38 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useWeb3 } from '@/contexts/Web3Context';
-import { Wallet, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Wallet, Menu, X, Moon, Sun } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import NotificationCenter from './NotificationCenter';
 
 export default function Navbar() {
   const { account, isConnecting, connect } = useWeb3();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved ? saved === 'dark' : true;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
+
+  const toggleTheme = () => {
+    setIsDark(!isDark);
+  };
 
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/marketplace', label: 'Marketplace' },
+    { href: '/collections', label: 'Collections' },
     { href: '/mint', label: 'Mint NFT' },
     { href: '/activity', label: 'Activity' },
     { href: '/leaderboard', label: 'Leaderboard' },
@@ -56,8 +76,17 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Connect Wallet Button */}
-          <div className="hidden md:block">
+          {/* Actions */}
+          <div className="hidden md:flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="rounded-full"
+            >
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            {account && <NotificationCenter />}
             {account ? (
               <Button variant="outline" className="font-medium">
                 <Wallet className="w-4 h-4 mr-2" />
@@ -104,7 +133,22 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleTheme}
+                  className="flex-1"
+                >
+                  {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                </Button>
+                {account && (
+                  <div className="flex-1">
+                    <NotificationCenter />
+                  </div>
+                )}
+              </div>
               {account ? (
                 <Button variant="outline" className="w-full font-medium">
                   <Wallet className="w-4 h-4 mr-2" />
