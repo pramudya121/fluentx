@@ -4,99 +4,71 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Upload, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, Sparkles, AlertCircle, Network } from 'lucide-react';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { mintNFT } from '@/lib/web3/contracts';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { getProvider, switchToFluentTestnet, setupChainChangeListener } from '@/lib/web3/wallet';
+import { getProvider, switchNetwork, setupChainChangeListener, getCurrentChainId } from '@/lib/web3/wallet';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { SUPPORTED_NETWORKS } from '@/lib/web3/config';
 
 export default function MintNFT() {
-  const { account } = useWeb3();
+  const { account, currentChainId, isNetworkSupported } = useWeb3();
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [minting, setMinting] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState<'checking' | 'correct' | 'wrong' | 'no-wallet'>('checking');
 
-  // Check network on mount and when account changes
-  useEffect(() => {
-    const checkNetwork = async () => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    
+    if (!selectedFile) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(selectedFile.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (selectedFile.size > maxSize) {
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+
+    setFile(selectedFile);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(selectedFile);
+  };
+
+  const handleMint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (minting) return;
+
+    try {
+      // Check if connected to wallet
       if (!account) {
-        setNetworkStatus('no-wallet');
+        toast.error('Please connect your wallet first');
         return;
       }
 
-      try {
-        const provider = await getProvider();
-        if (!provider) {
-          setNetworkStatus('no-wallet');
-          return;
-        }
-
-        const network = await provider.getNetwork();
-        // Handle both BigInt and number for chainId
-        const chainId = typeof network.chainId === 'bigint' 
-          ? Number(network.chainId) 
-          : network.chainId;
-        
-        console.log('Current Chain ID:', chainId, 'Expected: 20994');
-        
-        if (chainId === 20994) {
-          setNetworkStatus('correct');
-        } else {
-          setNetworkStatus('wrong');
-        }
-      } catch (error) {
-        console.error('Error checking network:', error);
-        setNetworkStatus('wrong');
+      // Check network
+      if (!isNetworkSupported || !currentChainId) {
+        toast.error('Please switch to a supported network');
+        return;
       }
-    };
-
-    checkNetwork();
-
-    // Listen for chain changes
-    const cleanup = setupChainChangeListener(() => {
-      console.log('Chain changed, rechecking network...');
-      checkNetwork();
-    });
-
-    return cleanup;
-  }, [account]);
-
-  const handleSwitchNetwork = async () => {
-    try {
-      await switchToFluentTestnet();
-      
-      // Wait a bit for the network to switch, then recheck
-      setTimeout(async () => {
-        const provider = await getProvider();
-        if (provider) {
-          const network = await provider.getNetwork();
-          const chainId = typeof network.chainId === 'bigint' 
-            ? Number(network.chainId) 
-            : network.chainId;
-          
-          console.log('After switch - Chain ID:', chainId);
-          
-          if (chainId === 20994) {
-            setNetworkStatus('correct');
-            toast.success('Successfully switched to Fluent Testnet');
-          } else {
-            toast.error('Please manually switch to Fluent Testnet in your wallet');
-          }
-        }
-      }, 500);
-    } catch (error: any) {
-      console.error('Error switching network:', error);
-      toast.error(error.message || 'Failed to switch network');
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       // Validate file type
@@ -203,30 +175,22 @@ export default function MintNFT() {
             Mint Your NFT
           </h1>
           <p className="text-muted-foreground">
-            Create and mint your unique NFT on Fluent Testnet
+            Create and mint your unique NFT on supported networks
           </p>
         </div>
 
         {/* Network Status Alert */}
-        {networkStatus === 'wrong' && (
+        {!isNetworkSupported && account && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Wrong Network</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              <span>Please switch to Fluent Testnet to mint NFTs</span>
-              <Button 
-                onClick={handleSwitchNetwork} 
-                variant="outline" 
-                size="sm"
-                className="ml-4"
-              >
-                Switch Network
-              </Button>
+            <AlertDescription>
+              Please switch to a supported network using the network selector in the navbar
             </AlertDescription>
           </Alert>
         )}
 
-        {networkStatus === 'no-wallet' && (
+        {!account && (
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Wallet Not Connected</AlertTitle>
@@ -234,6 +198,15 @@ export default function MintNFT() {
               Please connect your wallet to start minting NFTs
             </AlertDescription>
           </Alert>
+        )}
+
+        {currentChainId && SUPPORTED_NETWORKS[currentChainId] && (
+          <div className="mb-6 flex items-center gap-2">
+            <Badge variant="outline" className="gap-2">
+              <Network className="w-4 h-4" />
+              Connected to {SUPPORTED_NETWORKS[currentChainId].name}
+            </Badge>
+          </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

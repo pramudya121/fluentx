@@ -83,6 +83,7 @@ export type Database = {
       listings: {
         Row: {
           active: boolean | null
+          chain_id: number
           created_at: string
           id: string
           listing_id: number
@@ -93,6 +94,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          chain_id?: number
           created_at?: string
           id?: string
           listing_id: number
@@ -103,6 +105,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          chain_id?: number
           created_at?: string
           id?: string
           listing_id?: number
@@ -123,6 +126,7 @@ export type Database = {
       }
       nfts: {
         Row: {
+          chain_id: number
           collection_id: string | null
           contract_address: string
           created_at: string
@@ -138,6 +142,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chain_id?: number
           collection_id?: string | null
           contract_address: string
           created_at?: string
@@ -153,6 +158,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chain_id?: number
           collection_id?: string | null
           contract_address?: string
           created_at?: string
@@ -233,6 +239,7 @@ export type Database = {
       }
       offers: {
         Row: {
+          chain_id: number
           created_at: string
           id: string
           nft_id: string | null
@@ -242,6 +249,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chain_id?: number
           created_at?: string
           id?: string
           nft_id?: string | null
@@ -251,6 +259,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chain_id?: number
           created_at?: string
           id?: string
           nft_id?: string | null
@@ -348,6 +357,7 @@ export type Database = {
       }
       transactions: {
         Row: {
+          chain_id: number
           created_at: string
           from_address: string
           id: string
@@ -358,6 +368,7 @@ export type Database = {
           type: string
         }
         Insert: {
+          chain_id?: number
           created_at?: string
           from_address: string
           id?: string
@@ -368,6 +379,7 @@ export type Database = {
           type: string
         }
         Update: {
+          chain_id?: number
           created_at?: string
           from_address?: string
           id?: string

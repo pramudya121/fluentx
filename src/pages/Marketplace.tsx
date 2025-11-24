@@ -7,13 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Search, Filter, Eye, ShoppingCart, Loader2, SlidersHorizontal, X, Star, TrendingUp } from 'lucide-react';
+import { Search, Filter, Eye, ShoppingCart, Loader2, SlidersHorizontal, X, Star, TrendingUp, Network } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { buyNFT } from '@/lib/web3/contracts';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { SUPPORTED_NETWORKS } from '@/lib/web3/config';
 
 interface NFT {
   id: string;
@@ -24,11 +25,12 @@ interface NFT {
   owner_address: string;
   created_at?: string;
   rarity_score?: number;
-  listings?: { price: string; active: boolean; listing_id: number }[];
+  chain_id: number;
+  listings?: { price: string; active: boolean; listing_id: number; chain_id: number }[];
 }
 
 export default function Marketplace() {
-  const { account } = useWeb3();
+  const { account, currentChainId } = useWeb3();
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [filteredNfts, setFilteredNfts] = useState<NFT[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,20 +43,24 @@ export default function Marketplace() {
   const [buying, setBuying] = useState(false);
 
   useEffect(() => {
-    fetchNFTs();
+    if (currentChainId) {
+      fetchNFTs();
+    }
     
     // Real-time subscription
     const channel = supabase
       .channel('marketplace-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
-        fetchNFTs();
+        if (currentChainId) {
+          fetchNFTs();
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [currentChainId]);
 
   useEffect(() => {
     filterAndSortNFTs();
@@ -62,13 +68,20 @@ export default function Marketplace() {
 
   async function fetchNFTs() {
     try {
+      if (!currentChainId) {
+        setNfts([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('nfts')
         .select(`
           *,
-          listings!inner(price, active, listing_id)
+          listings!inner(price, active, listing_id, chain_id)
         `)
-        .eq('listings.active', true);
+        .eq('listings.active', true)
+        .eq('chain_id', currentChainId);
 
       if (error) throw error;
       setNfts(data || []);
@@ -210,11 +223,19 @@ export default function Marketplace() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-            NFT Marketplace
-          </h1>
+          <div className="flex items-center gap-3 mb-4">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+              NFT Marketplace
+            </h1>
+            {currentChainId && SUPPORTED_NETWORKS[currentChainId] && (
+              <Badge variant="outline" className="gap-2 px-3 py-1">
+                <Network className="w-4 h-4" />
+                {SUPPORTED_NETWORKS[currentChainId].name}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground text-lg">
-            Discover and collect unique Sakura NFTs
+            Discover and collect unique Sakura NFTs on {currentChainId && SUPPORTED_NETWORKS[currentChainId] ? SUPPORTED_NETWORKS[currentChainId].name : 'supported networks'}
           </p>
         </div>
 
