@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
-import { getContract, getSigner, getProvider } from './wallet';
-import { CONTRACTS, MARKETPLACE_ABI, SAKURA_NFT_ABI, OFFER_ABI } from './config';
+import { getContract, getSigner, getProvider, getCurrentChainId } from './wallet';
+import { CONTRACTS, MARKETPLACE_ABI, SAKURA_NFT_ABI, OFFER_ABI, SUPPORTED_NETWORKS } from './config';
 import { supabase } from '@/integrations/supabase/client';
 
 // Upload file to Supabase Storage
@@ -65,12 +65,13 @@ export async function mintNFT(
       throw new Error('Unable to connect to network. Please connect your wallet first.');
     }
 
-    // Verify we're on the correct network
+    // Verify we're on a supported network
     const network = await provider.getNetwork();
-    console.log('Connected to network:', network.chainId);
+    const chainId = Number(network.chainId);
+    console.log('Connected to network:', chainId);
     
-    if (Number(network.chainId) !== 20994) {
-      throw new Error('Please switch to Fluent Testnet (Chain ID: 20994) in your wallet');
+    if (!SUPPORTED_NETWORKS[chainId]) {
+      throw new Error(`Please switch to a supported network (Fluent Testnet or RISE Testnet)`);
     }
 
     // Get signer
@@ -224,7 +225,8 @@ export async function mintNFT(
       image_url: imageUrl,
       owner_address: ownerAddress.toLowerCase(),
       creator_address: ownerAddress.toLowerCase(),
-      metadata_uri: metadataUri
+      metadata_uri: metadataUri,
+      chain_id: chainId
     });
 
     if (insertError) {
@@ -246,7 +248,8 @@ export async function mintNFT(
         from_address: ethers.ZeroAddress,
         to_address: ownerAddress.toLowerCase(),
         type: 'mint',
-        tx_hash: receipt.hash
+        tx_hash: receipt.hash,
+        chain_id: chainId
       });
     }
 
@@ -284,6 +287,11 @@ export async function listNFT(tokenId: number, price: string): Promise<number> {
       throw new Error('Please connect your wallet first');
     }
 
+    const chainId = await getCurrentChainId();
+    if (!chainId || !SUPPORTED_NETWORKS[chainId]) {
+      throw new Error('Please connect to a supported network');
+    }
+
     const priceInWei = ethers.parseEther(price);
     
     // Approve marketplace
@@ -315,6 +323,7 @@ export async function listNFT(tokenId: number, price: string): Promise<number> {
       .select('id')
       .eq('token_id', tokenId)
       .eq('contract_address', CONTRACTS.SAKURA_NFT)
+      .eq('chain_id', chainId)
       .single();
 
     if (nftData.data) {
@@ -323,7 +332,8 @@ export async function listNFT(tokenId: number, price: string): Promise<number> {
         nft_id: nftData.data.id,
         seller_address: (await signer.getAddress()).toLowerCase(),
         price: price,
-        active: true
+        active: true,
+        chain_id: chainId
       });
     }
 
@@ -377,7 +387,8 @@ export async function buyNFT(listingId: number, price: string): Promise<void> {
         to_address: buyerAddress.toLowerCase(),
         price: price,
         type: 'sale',
-        tx_hash: receipt.hash
+        tx_hash: receipt.hash,
+        chain_id: listing.data.nfts.chain_id
       });
     }
   } catch (error: any) {
@@ -394,6 +405,11 @@ export async function makeOffer(tokenId: number, offerPrice: string): Promise<vo
       throw new Error('Please connect your wallet first');
     }
 
+    const chainId = await getCurrentChainId();
+    if (!chainId || !SUPPORTED_NETWORKS[chainId]) {
+      throw new Error('Please connect to a supported network');
+    }
+
     const offerContract = getContract(CONTRACTS.OFFER, OFFER_ABI, signer);
     const priceInWei = ethers.parseEther(offerPrice);
     
@@ -406,6 +422,7 @@ export async function makeOffer(tokenId: number, offerPrice: string): Promise<vo
       .select('id, owner_address')
       .eq('token_id', tokenId)
       .eq('contract_address', CONTRACTS.SAKURA_NFT)
+      .eq('chain_id', chainId)
       .single();
 
     if (nftData.data) {
@@ -415,7 +432,8 @@ export async function makeOffer(tokenId: number, offerPrice: string): Promise<vo
         nft_id: nftData.data.id,
         offerer_address: offererAddress.toLowerCase(),
         price: offerPrice,
-        status: 'pending'
+        status: 'pending',
+        chain_id: chainId
       });
 
       // Create notification for owner
@@ -491,7 +509,8 @@ export async function acceptOffer(tokenId: number, offererAddress: string): Prom
           to_address: offererAddress.toLowerCase(),
           price: offer.data.price,
           type: 'sale',
-          tx_hash: receipt.hash
+          tx_hash: receipt.hash,
+          chain_id: offer.data.chain_id
         });
       }
     }

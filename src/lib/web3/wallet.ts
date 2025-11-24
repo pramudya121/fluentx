@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { FLUENT_TESTNET } from './config';
+import { SUPPORTED_NETWORKS, DEFAULT_NETWORK } from './config';
 
 declare global {
   interface Window {
@@ -43,8 +43,11 @@ export async function connectWallet(walletType: WalletType = 'metamask'): Promis
       throw new Error('No accounts found');
     }
 
-    // Check and switch to FLUENT testnet
-    await switchToFluentTestnet(provider);
+    // Check and switch to default network if needed
+    const chainId = await getCurrentChainId();
+    if (!chainId || !SUPPORTED_NETWORKS[chainId]) {
+      await switchNetwork(DEFAULT_NETWORK.chainId, provider);
+    }
 
     return accounts[0];
   } catch (error: any) {
@@ -53,47 +56,52 @@ export async function connectWallet(walletType: WalletType = 'metamask'): Promis
   }
 }
 
-export async function switchToFluentTestnet(provider?: any): Promise<void> {
+export async function switchNetwork(chainId: number, provider?: any): Promise<void> {
   const ethereum = provider || window.ethereum;
   
   if (!ethereum) {
     throw new Error('No wallet provider found');
   }
 
+  const network = SUPPORTED_NETWORKS[chainId];
+  if (!network) {
+    throw new Error('Unsupported network');
+  }
+
   try {
     // Try to switch to the network first
     await ethereum.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: FLUENT_TESTNET.chainIdHex }],
+      params: [{ chainId: network.chainIdHex }],
     });
-    console.log('Successfully switched to Fluent Testnet');
+    console.log(`Successfully switched to ${network.name}`);
   } catch (switchError: any) {
     console.log('Switch error:', switchError);
     
     // Chain not added yet, try to add it (error code 4902)
     if (switchError.code === 4902 || switchError.code === -32603) {
       try {
-        console.log('Adding Fluent Testnet to wallet...');
+        console.log(`Adding ${network.name} to wallet...`);
         await ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [
             {
-              chainId: FLUENT_TESTNET.chainIdHex,
-              chainName: FLUENT_TESTNET.name,
+              chainId: network.chainIdHex,
+              chainName: network.name,
               nativeCurrency: {
-                name: FLUENT_TESTNET.nativeCurrency.name,
-                symbol: FLUENT_TESTNET.nativeCurrency.symbol,
-                decimals: FLUENT_TESTNET.nativeCurrency.decimals,
+                name: network.nativeCurrency.name,
+                symbol: network.nativeCurrency.symbol,
+                decimals: network.nativeCurrency.decimals,
               },
-              rpcUrls: [FLUENT_TESTNET.rpcUrl],
-              blockExplorerUrls: [FLUENT_TESTNET.blockExplorer],
+              rpcUrls: [network.rpcUrl],
+              blockExplorerUrls: [network.blockExplorer],
             },
           ],
         });
-        console.log('Successfully added Fluent Testnet');
+        console.log(`Successfully added ${network.name}`);
       } catch (addError: any) {
         console.error('Error adding network:', addError);
-        throw new Error(addError.message || 'Failed to add Fluent Testnet to wallet. Please add it manually.');
+        throw new Error(addError.message || `Failed to add ${network.name} to wallet. Please add it manually.`);
       }
     } else if (switchError.code === 4001) {
       // User rejected the request
@@ -102,6 +110,25 @@ export async function switchToFluentTestnet(provider?: any): Promise<void> {
       // Other errors
       throw new Error(switchError.message || 'Failed to switch network');
     }
+  }
+}
+
+// Backward compatibility
+export async function switchToFluentTestnet(provider?: any): Promise<void> {
+  return switchNetwork(20994, provider);
+}
+
+export async function getCurrentChainId(): Promise<number | null> {
+  if (!window.ethereum) {
+    return null;
+  }
+
+  try {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    return parseInt(chainId, 16);
+  } catch (error) {
+    console.error('Error getting chain ID:', error);
+    return null;
   }
 }
 

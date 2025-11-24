@@ -5,15 +5,26 @@ import { Wallet, Menu, X, Moon, Sun } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import NotificationCenter from './NotificationCenter';
+import NetworkSelector from './NetworkSelector';
+import WrongNetworkModal from './WrongNetworkModal';
 
 export default function Navbar() {
-  const { account, isConnecting, connect } = useWeb3();
+  const { account, isConnecting, connect, isNetworkSupported } = useWeb3();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showWrongNetworkModal, setShowWrongNetworkModal] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme');
     return saved ? saved === 'dark' : true;
   });
+
+  useEffect(() => {
+    if (account && !isNetworkSupported) {
+      setShowWrongNetworkModal(true);
+    } else {
+      setShowWrongNetworkModal(false);
+    }
+  }, [account, isNetworkSupported]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -86,6 +97,7 @@ export default function Navbar() {
             >
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
+            <NetworkSelector />
             {account && <NotificationCenter />}
             {account ? (
               <Button variant="outline" className="font-medium">
@@ -149,6 +161,7 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
+              <NetworkSelector />
               {account ? (
                 <Button variant="outline" className="w-full font-medium">
                   <Wallet className="w-4 h-4 mr-2" />
@@ -171,6 +184,11 @@ export default function Navbar() {
           </div>
         )}
       </div>
+
+      <WrongNetworkModal 
+        isOpen={showWrongNetworkModal} 
+        onClose={() => setShowWrongNetworkModal(false)} 
+      />
     </nav>
   );
 }

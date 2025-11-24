@@ -80,7 +80,7 @@ export default function Index() {
             Sakura NFT Marketplace
           </h1>
           <p className="text-xl md:text-2xl mb-8 text-white/90 drop-shadow-lg max-w-2xl mx-auto">
-            Discover, collect, and trade unique NFTs on FLUENT Testnet with the beauty of winter sakura
+            Discover, collect, and trade unique NFTs across multiple Testnet networks with the beauty of winter cherry blossoms
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/marketplace">
