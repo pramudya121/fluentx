@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Package, Activity } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { SUPPORTED_NETWORKS } from '@/lib/web3/config';
+import { Badge } from '@/components/ui/badge';
 
 interface Stats {
   totalNFTs: number;
@@ -16,6 +18,15 @@ interface ChartData {
   value: number;
 }
 
+interface ChainStats {
+  chainId: number;
+  chainName: string;
+  totalNFTs: number;
+  totalSales: number;
+  totalVolume: number;
+  activeListings: number;
+}
+
 export default function Analytics() {
   const [stats, setStats] = useState<Stats>({
     totalNFTs: 0,
@@ -23,6 +34,7 @@ export default function Analytics() {
     totalVolume: 0,
     activeListings: 0
   });
+  const [chainStats, setChainStats] = useState<ChainStats[]>([]);
   const [salesData, setSalesData] = useState<ChartData[]>([]);
   const [volumeData, setVolumeData] = useState<ChartData[]>([]);
   const [distributionData, setDistributionData] = useState<ChartData[]>([]);
@@ -64,6 +76,9 @@ export default function Analytics() {
         activeListings: listingsCount || 0
       });
 
+      // Fetch per-chain statistics
+      await fetchChainStats();
+
       // Prepare chart data
       prepareSalesData(salesData || []);
       prepareDistributionData(nftCount || 0, listingsCount || 0, salesCount || 0);
@@ -72,6 +87,51 @@ export default function Analytics() {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchChainStats() {
+    try {
+      const chainStatsData: ChainStats[] = [];
+
+      for (const [chainIdStr, network] of Object.entries(SUPPORTED_NETWORKS)) {
+        const chainId = parseInt(chainIdStr);
+
+        // Fetch NFT count per chain
+        const { count: nftCount } = await supabase
+          .from('nfts')
+          .select('*', { count: 'exact', head: true })
+          .eq('chain_id', chainId);
+
+        // Fetch sales per chain
+        const { data: sales } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('type', 'sale')
+          .eq('chain_id', chainId);
+
+        // Fetch active listings per chain
+        const { count: listingCount } = await supabase
+          .from('listings')
+          .select('*', { count: 'exact', head: true })
+          .eq('active', true)
+          .eq('chain_id', chainId);
+
+        const totalVolume = sales?.reduce((sum, sale) => sum + parseFloat(sale.price || '0'), 0) || 0;
+
+        chainStatsData.push({
+          chainId,
+          chainName: network.name,
+          totalNFTs: nftCount || 0,
+          totalSales: sales?.length || 0,
+          totalVolume,
+          activeListings: listingCount || 0
+        });
+      }
+
+      setChainStats(chainStatsData);
+    } catch (error) {
+      console.error('Error fetching chain stats:', error);
     }
   }
 
@@ -308,59 +368,73 @@ export default function Analytics() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-muted-foreground">Average Sale Price</span>
-                  <span className="font-semibold text-lg">
-                    {stats.totalSales > 0 
-                      ? `${(stats.totalVolume / stats.totalSales).toFixed(3)} ETH`
-                      : 'N/A'
-                    }
+                  <span className="text-2xl font-bold text-primary">
+                    {stats.totalSales > 0 ? (stats.totalVolume / stats.totalSales).toFixed(3) : '0.000'} ETH
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-primary to-primary-glow h-2 rounded-full"
-                    style={{ width: `${Math.min((stats.totalVolume / stats.totalSales / 10) * 100, 100)}%` }}
-                  />
-                </div>
               </div>
-
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-muted-foreground">Listing Rate</span>
-                  <span className="font-semibold text-lg">
-                    {stats.totalNFTs > 0 
-                      ? `${((stats.activeListings / stats.totalNFTs) * 100).toFixed(1)}%`
-                      : '0%'
-                    }
+                  <span className="text-2xl font-bold">
+                    {stats.totalNFTs > 0 ? ((stats.activeListings / stats.totalNFTs) * 100).toFixed(1) : '0'}%
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
-                    style={{ width: `${Math.min((stats.activeListings / stats.totalNFTs) * 100, 100)}%` }}
-                  />
-                </div>
               </div>
-
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-muted-foreground">Sales Conversion</span>
-                  <span className="font-semibold text-lg">
-                    {stats.activeListings > 0 
-                      ? `${((stats.totalSales / (stats.activeListings + stats.totalSales)) * 100).toFixed(1)}%`
-                      : '0%'
-                    }
+                  <span className="text-2xl font-bold">
+                    {stats.totalNFTs > 0 ? ((stats.totalSales / stats.totalNFTs) * 100).toFixed(1) : '0'}%
                   </span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full"
-                    style={{ width: `${Math.min((stats.totalSales / (stats.activeListings + stats.totalSales)) * 100, 100)}%` }}
-                  />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Per-Chain Statistics */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Per-Chain Statistics
+            </CardTitle>
+            <CardDescription>Network-specific marketplace metrics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-6">
+              {chainStats.map((chain) => (
+                <div key={chain.chainId} className="border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-colors">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold">{chain.chainName}</h3>
+                    <Badge variant="outline" className="text-xs">
+                      Chain {chain.chainId}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Total NFTs</p>
+                      <p className="text-2xl font-bold">{chain.totalNFTs}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Total Sales</p>
+                      <p className="text-2xl font-bold">{chain.totalSales}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Total Volume</p>
+                      <p className="text-2xl font-bold text-primary">{chain.totalVolume.toFixed(3)} ETH</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Active Listings</p>
+                      <p className="text-2xl font-bold">{chain.activeListings}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

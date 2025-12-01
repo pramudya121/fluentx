@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Activity as ActivityIcon, ShoppingBag, Tag, DollarSign, Sparkles, Filter } from 'lucide-react';
 import { formatDistance } from 'date-fns';
+import { useWeb3 } from '@/contexts/Web3Context';
+import { SUPPORTED_NETWORKS } from '@/lib/web3/config';
 
 interface Transaction {
   id: string;
@@ -14,6 +16,7 @@ interface Transaction {
   price: string | null;
   created_at: string;
   tx_hash: string | null;
+  chain_id: number;
   nfts: {
     name: string;
     image_url: string;
@@ -21,6 +24,7 @@ interface Transaction {
 }
 
 export default function Activity() {
+  const { currentChainId } = useWeb3();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +44,7 @@ export default function Activity() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [currentChainId]);
 
   useEffect(() => {
     filterTransactions();
@@ -48,7 +52,7 @@ export default function Activity() {
 
   async function fetchTransactions() {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select(`
           *,
@@ -56,6 +60,13 @@ export default function Activity() {
         `)
         .order('created_at', { ascending: false })
         .limit(100);
+      
+      // Filter by chain ID if connected
+      if (currentChainId) {
+        query = query.eq('chain_id', currentChainId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setTransactions(data || []);
@@ -217,6 +228,11 @@ export default function Activity() {
                       </div>
 
                       <div className="text-sm space-y-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs">
+                            {SUPPORTED_NETWORKS[tx.chain_id]?.name || `Chain ${tx.chain_id}`}
+                          </Badge>
+                        </div>
                         <p className="text-muted-foreground">
                           From: <span className="font-mono">{formatAddress(tx.from_address)}</span>
                         </p>
