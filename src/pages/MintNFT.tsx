@@ -52,57 +52,14 @@ export default function MintNFT() {
     reader.readAsDataURL(selectedFile);
   };
 
-  const handleMint = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (minting) return;
-
-    try {
-      // Check if connected to wallet
-      if (!account) {
-        toast.error('Please connect your wallet first');
-        return;
-      }
-
-      // Check network
-      if (!isNetworkSupported || !currentChainId) {
-        toast.error('Please switch to a supported network');
-        return;
-      }
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-      if (!validTypes.includes(selectedFile.type)) {
-        toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
-        return;
-      }
-
-      // Validate file size (max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-      if (selectedFile.size > maxSize) {
-        toast.error('Image size must be less than 10MB');
-        return;
-      }
-
-      setFile(selectedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
-      toast.success('Image loaded successfully');
-    }
-  };
-
   const handleMint = async () => {
     if (!account) {
       toast.error('Please connect your wallet first');
       return;
     }
 
-    if (networkStatus !== 'correct') {
-      toast.error('Please switch to Fluent Testnet first');
+    if (!isNetworkSupported || !currentChainId) {
+      toast.error('Please switch to a supported network');
       return;
     }
 
@@ -259,7 +216,7 @@ export default function MintNFT() {
                   type="file"
                   accept="image/*"
                   onChange={handleFileChange}
-                  disabled={minting || networkStatus !== 'correct'}
+                  disabled={minting || !isNetworkSupported}
                 />
                 <p className="text-xs text-muted-foreground">
                   Supported formats: JPG, PNG, GIF, WebP (Max 10MB)
@@ -273,7 +230,7 @@ export default function MintNFT() {
                   placeholder="Enter NFT name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  disabled={minting || networkStatus !== 'correct'}
+                  disabled={minting || !isNetworkSupported}
                   maxLength={100}
                 />
               </div>
@@ -286,14 +243,14 @@ export default function MintNFT() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
-                  disabled={minting || networkStatus !== 'correct'}
+                  disabled={minting || !isNetworkSupported}
                   maxLength={500}
                 />
               </div>
 
               <Button
                 onClick={handleMint}
-                disabled={!file || !name || minting || networkStatus !== 'correct'}
+                disabled={!file || !name || minting || !isNetworkSupported}
                 className="w-full"
                 size="lg"
               >
