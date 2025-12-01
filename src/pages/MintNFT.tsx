@@ -285,7 +285,7 @@ export default function MintNFT() {
             <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
               <li>Upload your artwork (image file)</li>
               <li>Add a name and description for your NFT</li>
-              <li>Ensure you're connected to Fluent Testnet</li>
+              <li>Ensure you're connected to a supported network (Fluent Testnet or RISE Testnet)</li>
               <li>Click "Mint NFT" and confirm the transaction in your wallet</li>
               <li>Wait for the transaction to be confirmed on the blockchain</li>
               <li>Your NFT will appear in your profile once minted</li>
@@ -294,7 +294,7 @@ export default function MintNFT() {
               <p className="text-sm font-medium mb-1">Note:</p>
               <p className="text-sm text-muted-foreground">
                 Minting requires a small amount of ETH for gas fees. Make sure you have enough
-                ETH in your wallet on Fluent Testnet.
+                ETH in your wallet on the active network.
               </p>
             </div>
           </CardContent>
