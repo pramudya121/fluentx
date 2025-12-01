@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Package, Activity, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useWeb3 } from '@/contexts/Web3Context';
+import { SUPPORTED_NETWORKS } from '@/lib/web3/config';
 
 interface Collection {
   id: string;
@@ -27,6 +29,7 @@ interface NFT {
   image_url: string;
   rarity_score: number;
   owner_address: string;
+  chain_id: number;
   listings: { price: string; active: boolean }[];
 }
 
@@ -45,6 +48,7 @@ interface Transaction {
 
 export default function CollectionDetail() {
   const { id } = useParams();
+  const { currentChainId } = useWeb3();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -69,7 +73,7 @@ export default function CollectionDetail() {
       setCollection(collectionData);
 
       // Fetch NFTs in collection
-      const { data: nftsData, error: nftsError } = await supabase
+      let nftsQuery = supabase
         .from('nfts')
         .select(`
           *,
@@ -77,6 +81,13 @@ export default function CollectionDetail() {
         `)
         .eq('collection_id', id)
         .order('rarity_score', { ascending: false });
+      
+      // Filter by chain ID if connected
+      if (currentChainId) {
+        nftsQuery = nftsQuery.eq('chain_id', currentChainId);
+      }
+
+      const { data: nftsData, error: nftsError } = await nftsQuery;
 
       if (nftsError) throw nftsError;
       setNfts(nftsData || []);
@@ -233,7 +244,12 @@ export default function CollectionDetail() {
                         />
                       </div>
                       <CardContent className="p-4">
-                        <h3 className="font-semibold truncate">{nft.name}</h3>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="font-semibold truncate flex-1">{nft.name}</h3>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {SUPPORTED_NETWORKS[nft.chain_id]?.name || `Chain ${nft.chain_id}`}
+                          </Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">#{nft.token_id}</p>
                         {nft.rarity_score > 0 && (
                           <Badge variant="secondary" className="mt-2">

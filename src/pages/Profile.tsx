@@ -55,7 +55,7 @@ interface UserBadge {
 }
 
 export default function Profile() {
-  const { account } = useWeb3();
+  const { account, currentChainId } = useWeb3();
   const [profile, setProfile] = useState<Profile>({
     username: '',
     bio: '',
@@ -118,7 +118,7 @@ export default function Profile() {
     if (!account) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('nfts')
         .select(`
           *,
@@ -126,6 +126,13 @@ export default function Profile() {
         `)
         .eq('owner_address', account.toLowerCase())
         .order('created_at', { ascending: false });
+      
+      // Filter by current chain if connected
+      if (currentChainId) {
+        query = query.eq('chain_id', currentChainId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setOwnedNFTs(data || []);
@@ -164,13 +171,20 @@ export default function Profile() {
     if (!account) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('offers')
         .select(`
           *,
-          nfts(id, name, image_url, token_id, owner_address)
+          nfts(id, name, image_url, token_id, owner_address, chain_id)
         `)
         .order('created_at', { ascending: false });
+      
+      // Filter by current chain if connected
+      if (currentChainId) {
+        query = query.eq('chain_id', currentChainId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       

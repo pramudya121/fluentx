@@ -411,7 +411,12 @@ export default function Marketplace() {
                   )}
                 </div>
                 <CardContent className="pt-4">
-                  <h3 className="font-bold text-lg mb-1 truncate">{nft.name}</h3>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h3 className="font-bold text-lg truncate flex-1">{nft.name}</h3>
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {SUPPORTED_NETWORKS[nft.chain_id]?.name || `Chain ${nft.chain_id}`}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                     {nft.description || 'No description'}
                   </p>
