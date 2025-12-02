@@ -8,12 +8,14 @@ import NotificationCenter from './NotificationCenter';
 import NetworkSelector from './NetworkSelector';
 import NetworkStatus from './NetworkStatus';
 import WrongNetworkModal from './WrongNetworkModal';
+import WalletSelector from './WalletSelector';
 
 export default function Navbar() {
-  const { account, isConnecting, connect, isNetworkSupported } = useWeb3();
+  const { account, isConnecting, isNetworkSupported } = useWeb3();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showWrongNetworkModal, setShowWrongNetworkModal] = useState(false);
+  const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme');
     return saved ? saved === 'dark' : true;
@@ -107,7 +109,7 @@ export default function Navbar() {
               </Button>
             ) : (
               <Button 
-                onClick={() => connect('metamask')} 
+                onClick={() => setShowWalletSelector(true)} 
                 disabled={isConnecting}
                 className="bg-gradient-to-r from-primary to-primary-glow hover:opacity-90 font-medium"
               >
@@ -179,7 +181,7 @@ export default function Navbar() {
               ) : (
                 <Button 
                   onClick={() => {
-                    connect('metamask');
+                    setShowWalletSelector(true);
                     setMobileMenuOpen(false);
                   }} 
                   disabled={isConnecting}
@@ -197,6 +199,10 @@ export default function Navbar() {
       <WrongNetworkModal 
         isOpen={showWrongNetworkModal} 
         onClose={() => setShowWrongNetworkModal(false)} 
+      />
+      <WalletSelector 
+        open={showWalletSelector}
+        onOpenChange={setShowWalletSelector}
       />
     </nav>
   );

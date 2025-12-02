@@ -5,11 +5,11 @@ declare global {
   interface Window {
     ethereum?: any;
     okxwallet?: any;
-    bitkeep?: any;
+    coinbaseWalletExtension?: any;
   }
 }
 
-export type WalletType = 'metamask' | 'okx' | 'bitget';
+export type WalletType = 'metamask' | 'okx' | 'walletconnect' | 'coinbase';
 
 export async function connectWallet(walletType: WalletType = 'metamask'): Promise<string | null> {
   try {
@@ -19,19 +19,21 @@ export async function connectWallet(walletType: WalletType = 'metamask'): Promis
     switch (walletType) {
       case 'okx':
         if (!window.okxwallet) {
-          throw new Error('OKX Wallet not installed');
+          throw new Error('OKX Wallet not installed. Please install it from okx.com/web3');
         }
         provider = window.okxwallet;
         break;
-      case 'bitget':
-        if (!window.bitkeep?.ethereum) {
-          throw new Error('Bitget Wallet not installed');
+      case 'coinbase':
+        if (!window.coinbaseWalletExtension && !window.ethereum?.isCoinbaseWallet) {
+          throw new Error('Coinbase Wallet not installed. Please install it from coinbase.com/wallet');
         }
-        provider = window.bitkeep.ethereum;
+        provider = window.coinbaseWalletExtension || window.ethereum;
         break;
+      case 'walletconnect':
+        throw new Error('Please use WalletConnect button to connect');
       default:
         if (!window.ethereum) {
-          throw new Error('MetaMask not installed');
+          throw new Error('MetaMask not installed. Please install it from metamask.io');
         }
         provider = window.ethereum;
     }
@@ -78,8 +80,8 @@ export async function switchNetwork(chainId: number, provider?: any): Promise<vo
   } catch (switchError: any) {
     console.log('Switch error:', switchError);
     
-    // Chain not added yet, try to add it (error code 4902)
-    if (switchError.code === 4902 || switchError.code === -32603) {
+    // Chain not added yet (error code 4902)
+    if (switchError.code === 4902) {
       try {
         console.log(`Adding ${network.name} to wallet...`);
         await ethereum.request({
@@ -101,6 +103,20 @@ export async function switchNetwork(chainId: number, provider?: any): Promise<vo
         console.log(`Successfully added ${network.name}`);
       } catch (addError: any) {
         console.error('Error adding network:', addError);
+        // If network already exists with same RPC, just switch to it
+        if (addError.code === -32603 || addError.message?.includes('same RPC endpoint')) {
+          console.log('Network already exists, attempting to switch...');
+          try {
+            await ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: network.chainIdHex }],
+            });
+            console.log(`Successfully switched to existing ${network.name}`);
+            return;
+          } catch (finalError: any) {
+            throw new Error(`Failed to switch to ${network.name}. Please switch manually in your wallet.`);
+          }
+        }
         throw new Error(addError.message || `Failed to add ${network.name} to wallet. Please add it manually.`);
       }
     } else if (switchError.code === 4001) {

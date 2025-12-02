@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { listNFT } from '@/lib/web3/contracts';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import WatchlistButton from '@/components/WatchlistButton';
 
 interface Offer {
   id: string;
@@ -603,12 +604,15 @@ export default function Profile() {
                 {ownedNFTs.map((nft) => (
                   <Card key={nft.id} className="group hover-glow overflow-hidden">
                     <Link to={`/nft/${nft.id}`}>
-                      <div className="aspect-square overflow-hidden">
+                      <div className="aspect-square overflow-hidden relative">
                         <img
                           src={nft.image_url}
                           alt={nft.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
+                        <div className="absolute top-2 right-2">
+                          <WatchlistButton nftId={nft.id} />
+                        </div>
                       </div>
                     </Link>
                     <CardContent className="pt-4">
