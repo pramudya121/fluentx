@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { buyNFT, listNFT, makeOffer, acceptOffer, cancelOffer } from '@/lib/web3/contracts';
 import { ShoppingCart, Tag, DollarSign, X, Check, Loader2, ExternalLink } from 'lucide-react';
 import { formatDistance } from 'date-fns';
+import WatchlistButton from '@/components/WatchlistButton';
 
 interface NFT {
   id: string;
@@ -324,16 +325,19 @@ export default function NFTDetail() {
             {/* Title & Price */}
             <Card className="glass-card">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
                     <CardTitle className="text-3xl mb-2">{nft.name}</CardTitle>
                     <CardDescription>Token ID: #{nft.token_id}</CardDescription>
                   </div>
-                  {hasActiveListing && (
-                    <Badge className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-primary-glow">
-                      {activeListing.price} ETH
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <WatchlistButton nftId={nft.id} />
+                    {hasActiveListing && (
+                      <Badge className="text-lg px-4 py-2 bg-gradient-to-r from-primary to-primary-glow">
+                        {activeListing.price} ETH
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

@@ -15,6 +15,7 @@ import { buyNFT } from '@/lib/web3/contracts';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { SUPPORTED_NETWORKS } from '@/lib/web3/config';
+import WatchlistButton from '@/components/WatchlistButton';
 
 interface NFT {
   id: string;
@@ -400,15 +401,18 @@ export default function Marketplace() {
                     alt={nft.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   />
-                  {nft.rarity_score && (
-                    <Badge 
-                      className={`absolute top-2 right-2 ${getRarityColor(nft.rarity_score)}`}
-                      variant="secondary"
-                    >
-                      <Star className="w-3 h-3 mr-1" />
-                      {getRarityLabel(nft.rarity_score)}
-                    </Badge>
-                  )}
+                  <div className="absolute top-2 right-2 flex gap-2">
+                    {nft.rarity_score && (
+                      <Badge 
+                        className={getRarityColor(nft.rarity_score)}
+                        variant="secondary"
+                      >
+                        <Star className="w-3 h-3 mr-1" />
+                        {getRarityLabel(nft.rarity_score)}
+                      </Badge>
+                    )}
+                    <WatchlistButton nftId={nft.id} />
+                  </div>
                 </div>
                 <CardContent className="pt-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
