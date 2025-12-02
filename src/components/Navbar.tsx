@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import NotificationCenter from './NotificationCenter';
 import NetworkSelector from './NetworkSelector';
+import NetworkStatus from './NetworkStatus';
 import WrongNetworkModal from './WrongNetworkModal';
 
 export default function Navbar() {
@@ -127,6 +128,13 @@ export default function Navbar() {
           </Button>
         </div>
 
+        {/* Network Status - Desktop */}
+        {account && (
+          <div className="hidden md:block mt-4 animate-fade-in">
+            <NetworkStatus />
+          </div>
+        )}
+
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden mt-4 pb-4 space-y-2 animate-fade-in">
@@ -162,6 +170,7 @@ export default function Navbar() {
                 )}
               </div>
               <NetworkSelector />
+              {account && <NetworkStatus />}
               {account ? (
                 <Button variant="outline" className="w-full font-medium">
                   <Wallet className="w-4 h-4 mr-2" />
